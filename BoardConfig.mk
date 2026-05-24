@@ -90,9 +90,11 @@ BOARD_SYSTEM_EXTIMAGE_PARTITION_SIZE := 1073741824
 BOARD_PRODUCTIMAGE_PARTITION_SIZE    := 1610612736
 BOARD_VENDORIMAGE_PARTITION_SIZE     := 369098752
 
-# Stock prebuilt images — we do not rebuild vendor or product (they get shipped as-is)
-BOARD_PREBUILT_VENDORIMAGE  := vendor/infinix/X657B/prebuilts/vendor.img
-BOARD_PREBUILT_PRODUCTIMAGE := vendor/infinix/X657B/prebuilts/product.img
+# Don't build vendor.img — user keeps stock vendor on device after flash.
+# Pattern from X657C tree. Also avoids "failed to find [/system] in canned fs_config"
+# packaging errors caused by the prebuilt-image approach confusing the build's
+# vendor staging dir handling.
+BUILD_WITHOUT_VENDOR := true
 
 # AVB / Verified Boot
 # Disable verification + hashtree (flags 3) so modified LineageOS system passes
