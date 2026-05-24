@@ -109,6 +109,12 @@ BOARD_AVB_MAKE_VBMETA_SYSTEM_IMAGE_ARGS += --flags 3
 # No chained vbmeta_system — we don't want any hash descriptor to be enforced.
 # Bake everything into a single, unsigned, fully-disabled vbmeta.img.
 
+# Recovery AVB still required by build (non-A/B device) but with same NONE algorithm
+BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa2048.pem
+BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA2048
+BOARD_AVB_RECOVERY_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
+BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 2
+
 # PLATFORM_SECURITY_PATCH must be set via build env / overlay, not in BoardConfig (it is readonly).
 # Use the LineageOS-default + only override VENDOR_SECURITY_PATCH to bypass anti-rollback.
 VENDOR_SECURITY_PATCH := 2099-12-31
