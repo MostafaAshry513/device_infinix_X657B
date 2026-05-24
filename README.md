@@ -22,7 +22,7 @@ Values verified from the stock firmware:
 | /system, /vendor, /product, /system_ext | ext4, logical (dynamic) | stock fstab |
 | Vendor security patch | 2022-11-05 | `ro.vendor.build.security_patch` |
 
-Specs not extractable from firmware (storage size, exact display resolution, CPU clock, battery, camera MP) — see official Infinix datasheet.
+📋 **Full hardware specs sheet → [SPECS.md](SPECS.md)** — everything below + panel chip, touch IC, modem firmware version, camera config, fingerprint chip, NFC, FM radio, PMIC, battery profile, boot modes, and partition layout. All values cited to the exact stock firmware file they were extracted from.
 
 ## Build prerequisites
 
