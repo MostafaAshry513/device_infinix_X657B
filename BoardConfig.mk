@@ -66,6 +66,7 @@ TARGET_COPY_OUT_SYSTEM_EXT := system_ext
 # Partitions (sizes from actual lpunpack of stock super.img — 4 logical partitions)
 BOARD_BOOTIMAGE_PARTITION_SIZE     := 33554432
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 40894464
+BOARD_DTBOIMG_PARTITION_SIZE       := 8388608
 
 BOARD_SUPER_PARTITION_SIZE := 3400384512
 BOARD_SUPER_PARTITION_GROUPS := infinix_dynamic_partitions
