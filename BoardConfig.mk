@@ -96,29 +96,18 @@ BOARD_VENDORIMAGE_PARTITION_SIZE     := 369098752
 # vendor staging dir handling.
 BUILD_WITHOUT_VENDOR := true
 
-# AVB / Verified Boot
-# Lesson from build #2: BOARD_AVB_VBMETA_SYSTEM := system caused the build to
-# generate a vbmeta_system.img with a Hashtree descriptor + Flags=0 — which
-# init's first-stage mount used to REJECT the system partition (hash mismatch
-# vs our freshly-built LineageOS content). The flag-3 vbmeta.img alone wasn't
-# enough; init reads vbmeta_system directly.
-#
-# Fix: chain vbmeta_system but tell it to use Flags=3 (verification + hashtree
-# both disabled) via BOARD_AVB_MAKE_VBMETA_SYSTEM_IMAGE_ARGS.
+# AVB / Verified Boot — UNSIGNED + flags=3 (verification + hashtree disabled).
+# Build #2 diagnostic proved: even with --flags 3, the MTK bootloader rejects
+# our vbmeta if signed with a key different from the OEM-burned key (sha1
+# 2597c218... ours vs cdbb77... stock). When BOARD_AVB_ALGORITHM is unset,
+# avbtool produces an unsigned vbmeta — bootloader has no signature to reject.
 BOARD_AVB_ENABLE := true
+BOARD_AVB_ALGORITHM := NONE
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 BOARD_AVB_MAKE_VBMETA_SYSTEM_IMAGE_ARGS += --flags 3
 
-BOARD_AVB_VBMETA_SYSTEM := system system_ext product
-BOARD_AVB_VBMETA_SYSTEM_KEY_PATH := external/avb/test/data/testkey_rsa2048.pem
-BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA2048
-BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
-BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX_LOCATION := 1
-
-BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa2048.pem
-BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA2048
-BOARD_AVB_RECOVERY_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
-BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 2
+# No chained vbmeta_system — we don't want any hash descriptor to be enforced.
+# Bake everything into a single, unsigned, fully-disabled vbmeta.img.
 
 # PLATFORM_SECURITY_PATCH must be set via build env / overlay, not in BoardConfig (it is readonly).
 # Use the LineageOS-default + only override VENDOR_SECURITY_PATCH to bypass anti-rollback.
