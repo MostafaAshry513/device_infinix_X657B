@@ -8,9 +8,13 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/gsi_keys.mk)
 # Pull stock vendor.img/product.img as prebuilts via the vendor tree
 $(call inherit-product-if-exists, vendor/infinix/X657B/X657B-vendor.mk)
 
-# Android Go defaults (sets up ART, dexpreopt, LMK, lowram tuning properly).
-# Without this inherit, dexpreopt_gen fails with "global configuration file is required".
+# Android Go defaults (lowram tuning, app exclusions, Go-specific configs).
 $(call inherit-product, build/make/target/product/go_defaults_512.mk)
+
+# Runtime / ART config — without this, dexpreopt_gen runs with empty -global
+# and fails with "global configuration file is required" for every Java app.
+# go_defaults doesn't inherit this; LineageOS's common_mini_go_phone doesn't either.
+$(call inherit-product, build/make/target/product/runtime_libart.mk)
 
 # Dalvik heap config (closer match to our 3 GB / 320 DPI than the 2048 variant)
 $(call inherit-product, frameworks/native/build/phone-xhdpi-2048-dalvik-heap.mk)
