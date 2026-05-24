@@ -38,7 +38,7 @@ BOARD_KERNEL_BASE        := 0x40000000
 BOARD_KERNEL_PAGESIZE    := 2048
 BOARD_RAMDISK_OFFSET     := 0x11b00000
 BOARD_KERNEL_TAGS_OFFSET := 0x07880000
-BOARD_KERNEL_CMDLINE     := bootopt=64S3,32S1,32S1 buildvariant=user
+BOARD_KERNEL_CMDLINE     := bootopt=64S3,32S1,32S1 buildvariant=user androidboot.selinux=permissive printk.devkmsg=on loglevel=7
 BOARD_KERNEL_IMAGE_NAME  := Image
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
@@ -97,13 +97,19 @@ BOARD_VENDORIMAGE_PARTITION_SIZE     := 369098752
 BUILD_WITHOUT_VENDOR := true
 
 # AVB / Verified Boot
-# Disable verification + hashtree (flags 3) so modified LineageOS system passes
-# stock fstab's dm-verity check. Non-A/B devices building recovery need
-# RECOVERY signing keys defined.
+# Lesson from build #2: BOARD_AVB_VBMETA_SYSTEM := system caused the build to
+# generate a vbmeta_system.img with a Hashtree descriptor + Flags=0 — which
+# init's first-stage mount used to REJECT the system partition (hash mismatch
+# vs our freshly-built LineageOS content). The flag-3 vbmeta.img alone wasn't
+# enough; init reads vbmeta_system directly.
+#
+# Fix: chain vbmeta_system but tell it to use Flags=3 (verification + hashtree
+# both disabled) via BOARD_AVB_MAKE_VBMETA_SYSTEM_IMAGE_ARGS.
 BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
+BOARD_AVB_MAKE_VBMETA_SYSTEM_IMAGE_ARGS += --flags 3
 
-BOARD_AVB_VBMETA_SYSTEM := system
+BOARD_AVB_VBMETA_SYSTEM := system system_ext product
 BOARD_AVB_VBMETA_SYSTEM_KEY_PATH := external/avb/test/data/testkey_rsa2048.pem
 BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA2048
 BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
