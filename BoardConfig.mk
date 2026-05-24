@@ -53,10 +53,10 @@ BOARD_FLASH_BLOCK_SIZE := 131072
 BOARD_HAS_LARGE_FILESYSTEM := true
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
-BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
-BOARD_VENDORIMAGE_PARTITION_TYPE := ext4
-BOARD_PRODUCTIMAGE_PARTITION_TYPE := ext4
-BOARD_SYSTEM_EXTIMAGE_PARTITION_TYPE := ext4
+BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE   := ext4
+BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE   := ext4
+BOARD_PRODUCTIMAGE_FILE_SYSTEM_TYPE  := ext4
+BOARD_SYSTEM_EXTIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 
 TARGET_COPY_OUT_VENDOR := vendor
@@ -77,9 +77,9 @@ BOARD_SYSTEM_EXTIMAGE_PARTITION_SIZE := 1073741824
 BOARD_PRODUCTIMAGE_PARTITION_SIZE    := 1610612736
 BOARD_VENDORIMAGE_PARTITION_SIZE     := 369098752
 
-# Stock prebuilt images — we do not rebuild vendor or product
-TARGET_PREBUILT_VENDOR_IMAGE  := vendor/infinix/X657B/prebuilts/vendor.img
-TARGET_PREBUILT_PRODUCT_IMAGE := vendor/infinix/X657B/prebuilts/product.img
+# Stock prebuilt images — we do not rebuild vendor or product (they get shipped as-is)
+BOARD_PREBUILT_VENDORIMAGE  := vendor/infinix/X657B/prebuilts/vendor.img
+BOARD_PREBUILT_PRODUCTIMAGE := vendor/infinix/X657B/prebuilts/product.img
 
 # AVB / Verified Boot — disable verification + hashtree (flags 3) so modified
 # LineageOS system passes stock fstab's dm-verity check. Anti-rollback bumped
@@ -87,8 +87,9 @@ TARGET_PREBUILT_PRODUCT_IMAGE := vendor/infinix/X657B/prebuilts/product.img
 BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 
-PLATFORM_SECURITY_PATCH := 2099-12-31
-VENDOR_SECURITY_PATCH   := 2099-12-31
+# PLATFORM_SECURITY_PATCH must be set via build env / overlay, not in BoardConfig (it is readonly).
+# Use the LineageOS-default + only override VENDOR_SECURITY_PATCH to bypass anti-rollback.
+VENDOR_SECURITY_PATCH := 2099-12-31
 
 # Recovery — leave stock (user keeps their TWRP)
 TARGET_NO_RECOVERY := true
