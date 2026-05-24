@@ -1,34 +1,37 @@
 # LineageOS 18.1 device tree — Infinix Smart 5 (X657B)
 
-Unofficial LineageOS 18.1 device tree for the **Infinix Smart 5 (X657B / X657B-OP-S2)**, a MediaTek MT6761 (Helio A22) device running 32-bit Android 11 Go.
+Unofficial LineageOS 18.1 device tree for the **Infinix Smart 5 (X657B / X657B-OP-S2)**, a MediaTek MT6761 device running 32-bit Android 11 Go.
 
-This tree builds a flashable ROM that ships **fresh LineageOS `system` + `system_ext`** on top of **stock `vendor` + `product` + `boot` + `dtbo`** for maximum hardware compatibility — no kernel modifications, no vendor blob extraction, no risk of breaking device-specific drivers (camera, fingerprint, modem, etc.).
+Strategy: ship **fresh LineageOS `system` + `system_ext`** on top of **stock `vendor` + `product` + `boot` + `dtbo`** for maximum hardware compatibility — no kernel modifications, no vendor blob extraction, no risk of breaking device-specific drivers (camera, fingerprint, modem, etc.).
 
 ## Device specs
 
-| Item | Value |
-|---|---|
-| Codename | X657B |
-| Model | Infinix Smart 5 |
-| SoC | MediaTek MT6761 (Helio A22) |
-| CPU | Quad-core ARM Cortex-A53 @ 2.0 GHz, 32-bit |
-| GPU | PowerVR Rogue GE8320 |
-| RAM | 2 GB (Android Go config) |
-| Storage | 32 GB eMMC |
-| Display | 6.6" HD+ (1600×720), 320 DPI |
-| Android | 11 / Go Edition |
+Values verified from the stock firmware:
+
+| Item | Value | Source |
+|---|---|---|
+| Codename | `X657B` | scatter file (`x657b_h6117`) |
+| Model | Infinix Smart 5 | `ro.product.vendor.model` |
+| SoC | MediaTek MT6761 (Helio A22) | `ro.board.platform` |
+| CPU ABIs | `armeabi-v7a`, `armeabi` (32-bit only) | `ro.product.cpu.abilist` |
+| GPU | PowerVR (Imagination — vendor codename "meow") | `ro.hardware.egl` |
+| Android | 11 / Go Edition | `ro.build.version.sdk=30`, `ro.config.low_ram=true` |
+| Display DPI | 320 | `ro.sf.lcd_density` |
+| RAM | 3 GB | device owner |
+| /data FS | F2FS with inline-crypt | stock fstab |
+| /system, /vendor, /product, /system_ext | ext4, logical (dynamic) | stock fstab |
+| Vendor security patch | 2022-11-05 | `ro.vendor.build.security_patch` |
+
+Specs not extractable from firmware (storage size, exact display resolution, CPU clock, battery, camera MP) — see official Infinix datasheet.
 
 ## Build prerequisites
 
 You will need a working LineageOS 18.1 source tree (see [LineageOS docs](https://wiki.lineageos.org/devices/X657B/build)).
 
 This device tree depends on:
-- `vendor/infinix/X657B` — companion vendor tree (this repo's sibling; provides stock `vendor.img` and `product.img` as prebuilts)
-- `kernel/infinix/mt6761` — kernel source (not strictly required; we use stock prebuilt kernel)
+- [`vendor/infinix/X657B`](https://github.com/MostafaAshry513/vendor_infinix_X657B) — companion vendor tree (provides stock `vendor.img` and `product.img` as prebuilts)
 
 ## Setup
-
-Place this repo in your LineageOS source tree at `device/infinix/X657B`:
 
 ```bash
 cd ~/lineage-18.1
@@ -47,7 +50,7 @@ simg2img stock/super.img stock/super.raw.img
 python3 /opt/lpunpack/lpunpack.py stock/super.raw.img stock/super-parts/
 
 # 3. Unpack stock boot.img to get kernel + DTB
-python3 tools/unpack_bootimg.py --boot_img stock/boot.img --out stock/boot-unpacked/
+python3 system/tools/mkbootimg/unpack_bootimg.py --boot_img stock/boot.img --out stock/boot-unpacked/
 
 # 4. Drop the files into the right places
 cp stock/boot.img                      device/infinix/X657B/prebuilts/boot.img
@@ -72,19 +75,19 @@ Output: `out/target/product/X657B/lineage-18.1-*-UNOFFICIAL-X657B.zip`
 ## Flash (TWRP)
 
 1. Take a TWRP backup of your current setup first.
-2. Wipe **Dalvik / ART Cache** and **Cache** only.
-3. **Install** the ROM ZIP. The flash will replace `system` + `system_ext` only; `vendor` and `product` get re-flashed with their stock images (no-op effectively).
+2. Wipe **Dalvik / ART Cache** and **Cache** only (do NOT wipe /data unless you want a clean install).
+3. **Install** the ROM ZIP. The flash will replace `system` + `system_ext`; `vendor` and `product` get re-flashed with their stock images.
 4. Reboot. First boot takes 5-15 min (apps dexopt on first launch).
 
 ## Known limitations / TODO
 
-- **OTG** not enabled in stock kernel — requires kernel rebuild with `CONFIG_USB_OTG=y`. See companion kernel repo.
+- **OTG** not enabled in stock kernel — requires kernel rebuild with `CONFIG_USB_OTG=y`. See companion kernel repo (TBD).
 - **VoLTE / VT** depends on modem firmware; YMMV.
-- **First-boot bootloop** with the current `vbmeta` flags 3 disable — if you hit verified-boot rejection, flash an empty disable-verity vbmeta to `vbmeta` / `vbmeta_system` partitions.
+- **vbmeta verification** is disabled in this build (`flags 3` — both verification and hashtree disabled). If your bootloader rejects, manually flash an empty disable-verity vbmeta to `vbmeta` partition.
 
 ## Credits
 
-- TWRP device tree generator output by @SebaUbuntu — used as a reference for kernel addresses and architecture flags ([source](https://github.com/twrpdtgen/android_device_infinix_Infinix-X657B))
+- TWRP device tree generator output by @SebaUbuntu — reference for kernel addresses and architecture flags ([source](https://github.com/twrpdtgen/android_device_infinix_Infinix-X657B))
 - Stock firmware images from official Infinix releases.
 
 ## License
