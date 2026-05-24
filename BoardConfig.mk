@@ -129,6 +129,14 @@ PRODUCT_FULL_TREBLE_OVERRIDE := true
 
 # SELinux — start with device-specific policy stubs in /sepolicy
 BOARD_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy
+SELINUX_IGNORE_NEVERALLOWS := true
+TARGET_USES_PREBUILT_VENDOR_SEPOLICY := true
+TARGET_HAS_FUSEBLK_SEPOLICY_ON_VENDOR := true
+
+# Build-broken workarounds (LineageOS 18.1 + MTK quirks — same pattern as X657C tree)
+BUILD_BROKEN_DUP_RULES := true
+BUILD_BROKEN_USES_BUILD_COPY_HEADERS := true
+BUILD_BROKEN_VINTF_PRODUCT_COPY_FILES := true
 
 # Inherit LineageOS BoardConfig common kernel bits
 include vendor/lineage/config/BoardConfigKernel.mk
