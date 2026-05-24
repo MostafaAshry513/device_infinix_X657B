@@ -91,8 +91,11 @@ BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 # Use the LineageOS-default + only override VENDOR_SECURITY_PATCH to bypass anti-rollback.
 VENDOR_SECURITY_PATCH := 2099-12-31
 
-# Recovery — leave stock (user keeps their TWRP)
+# Recovery — keep stock TWRP, but expose a recovery.fstab path so the build's
+# OTA package pipeline finds it (without it, INTERNAL_OTA_PACKAGE_TARGET ends
+# up empty and `bacon` fails its hard-link step).
 TARGET_NO_RECOVERY := true
+TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery/root/system/etc/recovery.fstab
 
 # Treble — required on Android 11+
 BOARD_VNDK_VERSION := current
