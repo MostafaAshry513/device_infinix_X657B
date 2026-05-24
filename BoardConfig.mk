@@ -91,10 +91,9 @@ BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 # Use the LineageOS-default + only override VENDOR_SECURITY_PATCH to bypass anti-rollback.
 VENDOR_SECURITY_PATCH := 2099-12-31
 
-# Recovery — keep stock TWRP, but expose a recovery.fstab path so the build's
-# OTA package pipeline finds it (without it, INTERNAL_OTA_PACKAGE_TARGET ends
-# up empty and `bacon` fails its hard-link step).
-TARGET_NO_RECOVERY := true
+# Recovery — let the build produce its own recovery.img (we don't flash it; user
+# keeps TWRP). Building it ensures recovery_fstab gets set, which is required for
+# INTERNAL_OTA_PACKAGE_TARGET to be defined and the bacon target to succeed.
 TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery/root/system/etc/recovery.fstab
 
 # Treble — required on Android 11+
