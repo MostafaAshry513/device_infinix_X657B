@@ -1,0 +1,6 @@
+# Prebuilt binary images extracted from stock firmware — users supply their own.
+prebuilts/boot.img
+prebuilts/dtbo.img
+prebuilts/recovery.img
+prebuilts/kernel
+prebuilts/dtb

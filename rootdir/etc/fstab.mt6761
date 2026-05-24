@@ -1,0 +1,26 @@
+# Android fstab for Infinix X657B (MT6761), cleaned from stock vendor preprocessor output.
+# Logical partitions chained to vbmeta_system; vendor accepts GSI signing keys.
+
+system          /system       ext4    ro      wait,avb=vbmeta_system,logical,first_stage_mount,avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey
+system_ext      /system_ext   ext4    ro      wait,avb,logical,first_stage_mount
+vendor          /vendor       ext4    ro      wait,avb,logical,first_stage_mount
+product         /product      ext4    ro      wait,avb,logical,first_stage_mount
+
+/dev/block/platform/bootdevice/by-name/md_udc    /metadata    ext4    noatime,nosuid,nodev,discard    wait,check,formattable,first_stage_mount
+
+/dev/block/platform/bootdevice/by-name/userdata  /data        f2fs    noatime,nosuid,nodev,discard,noflush_merge,reserve_root=134217,resgid=1065,inlinecrypt    latemount,wait,check,quota,reservedsize=128M,formattable,resize,checkpoint=fs,fileencryption=aes-256-xts:aes-256-cts:v1
+
+/dev/block/platform/bootdevice/by-name/cache     /cache       ext4    noatime,nosuid,nodev,noauto_da_alloc,discard    wait,check,formattable
+
+/dev/block/platform/bootdevice/by-name/tranfs    /tranfs      ext4    noatime,nosuid,nodev,noauto_da_alloc,discard    wait,check,formattable,nofail,first_stage_mount
+
+/dev/block/platform/bootdevice/by-name/protect1  /mnt/vendor/protect_f    ext4    noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc    wait,check,formattable
+/dev/block/platform/bootdevice/by-name/protect2  /mnt/vendor/protect_s    ext4    noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc    wait,check,formattable
+/dev/block/platform/bootdevice/by-name/nvdata    /mnt/vendor/nvdata       ext4    noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc    wait,check,formattable
+/dev/block/platform/bootdevice/by-name/nvcfg     /mnt/vendor/nvcfg        ext4    noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc    wait,check,formattable
+/dev/block/platform/bootdevice/by-name/persist   /mnt/vendor/persist      ext4    noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc    wait,check,formattable
+
+/devices/platform/externdevice*  auto    auto    defaults    voldmanaged=sdcard1:auto,encryptable=userdata
+/devices/platform/mt_usb*        auto    vfat    defaults    voldmanaged=usbotg:auto,encryptable=userdata
+
+/dev/block/platform/bootdevice/by-name/frp       /persistent  emmc    defaults    defaults
