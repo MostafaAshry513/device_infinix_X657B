@@ -20,3 +20,8 @@ BUILD_FINGERPRINT := Infinix/X657B-OP-S2/Infinix-X657B:11/RP1A.200720.011/221121
 
 TARGET_VENDOR := Infinix
 TARGET_VENDOR_PRODUCT_NAME := X657B
+
+# Force OTA package generation even though we don't build a new recovery (we
+# keep stock recovery / TWRP). Without this, INTERNAL_OTA_PACKAGE_TARGET stays
+# empty and the bacon target's `ln -f` fails.
+PRODUCT_BUILD_GENERIC_OTA_PACKAGE := true
