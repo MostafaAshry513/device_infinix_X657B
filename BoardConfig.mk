@@ -68,6 +68,11 @@ TARGET_COPY_OUT_VENDOR := vendor
 TARGET_COPY_OUT_PRODUCT := product
 TARGET_COPY_OUT_SYSTEM_EXT := system_ext
 
+# Non-SAR (system mounted at /system, not as rootfs). Required for Android 11
+# dynamic partitions. Without this the fs_config gets generated SAR-style and
+# mkuserimg_mke2fs fails with "failed to find [/system] in canned fs_config".
+BOARD_BUILD_SYSTEM_ROOT_IMAGE := false
+
 # Partitions (sizes from actual lpunpack of stock super.img — 4 logical partitions)
 BOARD_BOOTIMAGE_PARTITION_SIZE     := 33554432
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 40894464
