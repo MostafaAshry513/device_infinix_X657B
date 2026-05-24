@@ -15,10 +15,8 @@ TARGET_PREBUILT_DTB    := device/infinix/X657B/prebuilts/dtb
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
 
-# Init scripts (fstab + boot helpers)
-PRODUCT_PACKAGES += \
-    fstab.mt6761
-
+# fstab.mt6761 → /vendor/etc/fstab.mt6761 (single install path; Android.mk module removed
+# to avoid duplicate rules)
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/etc/fstab.mt6761:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.mt6761
 
