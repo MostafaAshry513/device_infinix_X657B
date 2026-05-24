@@ -1,13 +1,25 @@
 # Device packages and properties for Infinix X657B (MT6761, 32-bit, Android Go)
 
-# Reuse stock vendor partition unchanged. Vendor blobs come via vendor/infinix/X657B/X657B-vendor.mk
+# Install GSI signing keys into ramdisk — REQUIRED. Stock fstab has
+# avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey
+# so init's first_stage_mount needs these keys present to accept our system.
+$(call inherit-product, $(SRC_TARGET_DIR)/product/gsi_keys.mk)
+
+# Pull stock vendor.img/product.img as prebuilts via the vendor tree
 $(call inherit-product-if-exists, vendor/infinix/X657B/X657B-vendor.mk)
+
+# Android Go defaults (sets up ART, dexpreopt, LMK, lowram tuning properly).
+# Without this inherit, dexpreopt_gen fails with "global configuration file is required".
+$(call inherit-product, build/make/target/product/go_defaults_512.mk)
+
+# Dalvik heap config (closer match to our 3 GB / 320 DPI than the 2048 variant)
+$(call inherit-product, frameworks/native/build/phone-xhdpi-2048-dalvik-heap.mk)
 
 # Standard 32-bit Treble overlay paths
 DEVICE_PACKAGE_OVERLAYS += device/infinix/X657B/overlay
 
-# Stock vendor partition is unchanged — no per-blob copy needed.
-# However we need to point the build system at the stock prebuilts for boot + dtbo + vendor.img
+# Stock kernel + DTB are baked into our boot.img prebuilt; these only exist for
+# Soong's reference (BoardConfig points at them too).
 TARGET_PREBUILT_KERNEL := device/infinix/X657B/prebuilts/kernel
 TARGET_PREBUILT_DTB    := device/infinix/X657B/prebuilts/dtb
 
@@ -15,8 +27,7 @@ TARGET_PREBUILT_DTB    := device/infinix/X657B/prebuilts/dtb
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
 
-# fstab.mt6761 → /vendor/etc/fstab.mt6761 (single install path; Android.mk module removed
-# to avoid duplicate rules)
+# fstab.mt6761 → /vendor/etc/fstab.mt6761 (single install path)
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/etc/fstab.mt6761:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.mt6761
 
@@ -24,5 +35,3 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.config.low_ram=true \
     ro.lmk.use_psi=true
-
-# Audio + camera HAL config defaults (LineageOS Go defaults are fine, no overrides needed)
