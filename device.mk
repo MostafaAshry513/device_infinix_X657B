@@ -44,3 +44,9 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.config.low_ram=true \
     ro.lmk.use_psi=true
+
+# Dynamic partitions + shipping API level (required for correct system layout
+# and to keep /system mounted at /system instead of SAR — otherwise mkuserimg
+# fails: "failed to find [/system] in canned fs_config")
+PRODUCT_USE_DYNAMIC_PARTITIONS := true
+PRODUCT_SHIPPING_API_LEVEL := 29
