@@ -21,3 +21,9 @@ BUILD_FINGERPRINT := Infinix/X657B-OP-S2/Infinix-X657B:11/RP1A.200720.011/221121
 TARGET_VENDOR := Infinix
 TARGET_VENDOR_PRODUCT_NAME := X657B
 
+# Remove LineageOS Updater (we have no OTA server for unofficial builds, and its
+# dexpreopt fails without a global ART config which we don't need for this port).
+PRODUCT_PACKAGES_REMOVE += \
+    Updater \
+    privapp_whitelist_org.lineageos.updater.xml
+
