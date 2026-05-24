@@ -16,6 +16,11 @@ $(call inherit-product, build/make/target/product/go_defaults_512.mk)
 # go_defaults doesn't inherit this; LineageOS's common_mini_go_phone doesn't either.
 $(call inherit-product, build/make/target/product/runtime_libart.mk)
 
+# Override go_defaults' profile-based boot image (the boot.art generation step
+# isn't reliably wired up for our standalone tree, causing dex2oat to fail when
+# preopting frameworks/base/ext against a missing boot.art).
+PRODUCT_USE_PROFILE_FOR_BOOT_IMAGE := false
+
 # Dalvik heap config (closer match to our 3 GB / 320 DPI than the 2048 variant)
 $(call inherit-product, frameworks/native/build/phone-xhdpi-2048-dalvik-heap.mk)
 
