@@ -81,11 +81,23 @@ BOARD_VENDORIMAGE_PARTITION_SIZE     := 369098752
 BOARD_PREBUILT_VENDORIMAGE  := vendor/infinix/X657B/prebuilts/vendor.img
 BOARD_PREBUILT_PRODUCTIMAGE := vendor/infinix/X657B/prebuilts/product.img
 
-# AVB / Verified Boot — disable verification + hashtree (flags 3) so modified
-# LineageOS system passes stock fstab's dm-verity check. Anti-rollback bumped
-# to a far-future date so VendorBoot doesn't reject us.
+# AVB / Verified Boot
+# Disable verification + hashtree (flags 3) so modified LineageOS system passes
+# stock fstab's dm-verity check. Non-A/B devices building recovery need
+# RECOVERY signing keys defined.
 BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
+
+BOARD_AVB_VBMETA_SYSTEM := system
+BOARD_AVB_VBMETA_SYSTEM_KEY_PATH := external/avb/test/data/testkey_rsa2048.pem
+BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA2048
+BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
+BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX_LOCATION := 1
+
+BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa2048.pem
+BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA2048
+BOARD_AVB_RECOVERY_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
+BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 2
 
 # PLATFORM_SECURITY_PATCH must be set via build env / overlay, not in BoardConfig (it is readonly).
 # Use the LineageOS-default + only override VENDOR_SECURITY_PATCH to bypass anti-rollback.
