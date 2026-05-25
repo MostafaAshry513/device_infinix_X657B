@@ -50,3 +50,12 @@ PRODUCT_PROPERTY_OVERRIDES += \
 # fails: "failed to find [/system] in canned fs_config")
 PRODUCT_USE_DYNAMIC_PARTITIONS := true
 PRODUCT_SHIPPING_API_LEVEL := 29
+
+# Force VINTF framework manifest into /system/etc/vintf/manifest.xml.
+# Without this, system_manifest.xml module isn't pulled in by our minimal Go
+# product config and init halts at VINTF check (~25 sec bootloop).
+# Our $(DEVICE_FRAMEWORK_MANIFEST_FILE) gets merged into the module's output.
+PRODUCT_PACKAGES += \
+    system_manifest.xml \
+    system_ext_manifest.xml \
+    vendor_compatibility_matrix.xml

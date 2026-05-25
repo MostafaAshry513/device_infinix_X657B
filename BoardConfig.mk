@@ -141,3 +141,7 @@ BUILD_BROKEN_VINTF_PRODUCT_COPY_FILES := true
 
 # Inherit LineageOS BoardConfig common kernel bits
 include vendor/lineage/config/BoardConfigKernel.mk
+
+# VINTF — framework manifest (build was producing system.img with NO
+# /system/etc/vintf/manifest.xml, causing init halt at VINTF check ~25 sec).
+DEVICE_FRAMEWORK_MANIFEST_FILE := $(DEVICE_PATH)/framework_manifest.xml
