@@ -51,3 +51,16 @@ Because mkdir failed (RO + kernel SELinux + group-0 ENOSPC), edited the ext4 dir
 - Removed first_stage_mount from ramdisk fstab (both copies) — init still force-mounts metadata
 - Patched boot cmdline for permissive SELinux (multiple overflow iterations)
 - Identified sparse-image + wrong-boot.img issues; switched to boot-final + simg2img
+
+---
+## EVALUATION (root cause found)
+**The system image (super-hybrid) is MISSING required root mountpoint directories: `/metadata` and `/tranfs`.**
+A correctly-built Android 11 system image MUST contain these empty dirs so first-stage init's `switch_root` can move the /metadata mount into /system/metadata. The "hybrid" image build dropped them → switch_root ENOENT → panic at ~1.4s.
+
+**Why our manual fix kept "failing":** Every `simg2img` reflash of super-hybrid OVERWRITES root dir block 508 with the original (no-metadata) version, wiping our hand-added dir. The "it persisted" readings were stale dm-0 page cache. And every ramoops we read was stale (long pre-fix cmdline) because overflow/early-fail boots never refreshed it. Net: a clean "add /metadata + DON'T reflash + fresh log" attempt was never actually completed.
+
+**Build-server facts:** 362GB free disk, 8 cores / 31GB RAM, GitHub reachable from SERVER (server internet is separate from the user's metered tunnel — only adb push/pull over the tunnel costs the user's GB).
+
+## TWO PATHS
+- PATH A (surgical, minutes, no user internet): add /metadata to existing super-hybrid via ext4 surgery, do NOT reflash super after, boot, capture fresh log. Directly fixes root cause; likely exposes the next issue (the original ~9s hang).
+- PATH B (proper build, hours, server internet): set up LOS 18.1 build env on server, sync source (~100GB server BW, ~250GB disk), populate missing prebuilts/ + sepolicy/, build a correct super.img with proper mountpoints, push only final ~2GB image over tunnel. Robust/reproducible; large effort + iteration.
