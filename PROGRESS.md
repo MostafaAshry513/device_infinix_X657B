@@ -64,3 +64,15 @@ A correctly-built Android 11 system image MUST contain these empty dirs so first
 ## TWO PATHS
 - PATH A (surgical, minutes, no user internet): add /metadata to existing super-hybrid via ext4 surgery, do NOT reflash super after, boot, capture fresh log. Directly fixes root cause; likely exposes the next issue (the original ~9s hang).
 - PATH B (proper build, hours, server internet): set up LOS 18.1 build env on server, sync source (~100GB server BW, ~250GB disk), populate missing prebuilts/ + sepolicy/, build a correct super.img with proper mountpoints, push only final ~2GB image over tunnel. Robust/reproducible; large effort + iteration.
+
+---
+## PATH B IN PROGRESS — proper source build
+- Build env installed (OpenJDK 11, repo 2.54, all AOSP deps) ✓
+- repo init lineage-18.1 --depth=1; local_manifest added for device + vendor trees ✓
+- repo sync running (throttled, j5, within 70% resource budget) — server internet, not user's tunnel
+- Prebuilts EXTRACTED from stock boot.img (Nov 2022) → staged in /tmp/prebuilts:
+  - kernel (10548720 bytes, raw ARM Image)
+  - dtb (125101 bytes, valid FDT d00dfeed @ boot.img offset 11294784)
+  - dtbo.img (8MB, dumped from phone /dev/block/by-name/dtbo)
+- NEXT: create sepolicy/ dir, copy prebuilts into device tree, build lineage_X657B
+- NOTE: building from clean LOS source should AUTO-create proper root mountpoints (/metadata etc.), fixing the switch_root root cause without manual ext4 surgery.
