@@ -1,3 +1,11 @@
+# Inherit the AOSP handheld system base FIRST — provides PRODUCT_BOOT_JARS,
+# framework, core system services and the full bootclasspath. Without this the
+# hiddenapi step fails ("No boot DEX files specified") and nothing boots.
+# The Go config (go_defaults_512 + common_mini_go_phone) layers on top to trim
+# this base for low-RAM. Dropping the Go layer later = "normal" Android 11.
+$(call inherit-product, $(SRC_TARGET_DIR)/product/handheld_system.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/telephony_system.mk)
+
 # Inherit AOSP device configuration for X657B (32-bit Android Go)
 $(call inherit-product, device/infinix/X657B/device.mk)
 
