@@ -86,3 +86,15 @@ index 2156273..4b256ec 100644
  PRODUCT_BRAND := Infinix
  PRODUCT_MODEL := Infinix SMART 5
  PRODUCT_MANUFACTURER := Infinix
+diff --git a/rootdir/etc/init.mt6761.rc b/rootdir/etc/init.mt6761.rc
+index da6936e..ad9ce07 100644
+--- a/rootdir/etc/init.mt6761.rc
++++ b/rootdir/etc/init.mt6761.rc
+@@ -1185,5 +1185,5 @@ service osi /system/bin/osi
+ 
+ #BSP:add custom factory reset KFLHLEYJ-8 by wang.qin 20201026 start
+ on property:persist.vendor.tran.wipedata=1 && property:ro.boot.atm=enable
+-    tran_factory_reset
++    # tran_factory_reset (removed: invalid keyword for LOS init_verifier)
+ #BSP:add custom factory reset KFLHLEYJ-8 by wang.qin 20201026 end
+\ No newline at end of file
