@@ -109,3 +109,13 @@ exitcode 0x7f00 == the original switch_root "/metadata" failure signature. So no
 works (ramdisk load, first-stage init, /metadata mount, system mount) and we're back to the
 switch_root-moves-/metadata-into-/system/metadata step. Checking if /system/metadata exists in
 super_v5's system; if missing, add it (ext4 surgery) -> switch_root should pass -> second-stage.
+
+---
+## FIX: system root was missing /vendor and /system_ext mountpoints
+super_v5 system had /metadata + /product but NOT /vendor or /system_ext. First-stage mounts all
+logical partitions (system_ext, vendor, product) + /metadata then switch_root moves them into
+/system/<x>; missing /system/vendor (and /system_ext) -> switch_root "Unable to move mount" ->
+init killed (exitcode 0x7f00). Created the two missing mountpoint dirs via
+`mount -o rw,context=u:object_r:rootfs:s0` + mkdir (recovery SELinux blocks default mkdir).
+Now all of /vendor /system_ext /product /metadata exist; e2fsck clean. Rebooting:
+pristine stock boot (bootopt, working ramdisk) + proper vbmeta + this system.
