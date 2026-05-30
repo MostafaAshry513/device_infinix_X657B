@@ -82,3 +82,18 @@ Findings:
 - NOW TESTING: pristine unmodified stock boot (full cmdline incl bootopt) to confirm the ramdisk
   loads. If it loads -> bootopt is required -> must keep bootopt AND fit selinux=permissive (cmdline
   budget is tight; bootloader "cmdline overflow" >~40 chars of our portion).
+
+---
+## DISCOVERY: bootopt= is REQUIRED in cmdline (controls ramdisk/root load on MTK LK)
+- Pristine stock cmdline "bootopt=64S3,32S1,32S1 buildvariant=user" (40ch) -> ramdisk LOADS, no
+  mount_root panic. Replacing it with only "androidboot.selinux=permissive" (no bootopt) -> ramdisk
+  does NOT load -> "Unable to mount root fs". => bootopt is mandatory for the MTK bootloader to set
+  up the initramfs/root.
+- PROBLEM: cmdline budget ~40 chars (LK "cmdline overflow" beyond that). Can't fit BOTH
+  "bootopt=64S3,32S1,32S1" (22) AND "androidboot.selinux=permissive" (30) = 53ch. So with bootopt
+  we currently run SELinux ENFORCING (no permissive).
+- With pristine boot (bootopt, working ramdisk) + ZEROED vbmeta: no panic, no second-stage
+  (logger /metadata/blog.txt empty) => FIRST-STAGE hang. Suspect zeroed vbmeta = invalid AVB struct
+  that stalls the stock first-stage AVB; the build's flags-3 vbmeta is a VALID "disabled" descriptor.
+- NEXT: pristine stock boot + build's proper disabled-vbmeta (flags 3) + logger system. If first
+  stage cleanly skips AVB -> should reach second-stage (blog.txt appears).
