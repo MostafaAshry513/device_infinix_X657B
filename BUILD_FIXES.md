@@ -154,3 +154,8 @@ Used build's mkbootimg (stock header: base 0x40000000, k_off 0x8000, rd_off 0x11
 tags 0x7880000, pg 2048, hdrv2, cmdline "bootopt=64S3,32S1,32S1 buildvariant=user", stock dtb).
 Real 742554-byte ramdisk preserved. Now fs_mgr won't run e2fsck pre-switch_root.
 File: boot_nocheck.img. Flashing with super_v5(+mountpoints) + proper vbmeta.
+
+---
+## PAUSE POINT: e2fsck cleared; now switch_root panic after all 4 mounts
+boot_nocheck (no first-stage check) -> all of /metadata,dm-0..3 mount, then init killed
+(exitcode 0x7f00) at switch_root @1.41s. See RESUME_TOMORROW.md for full state + next steps.
