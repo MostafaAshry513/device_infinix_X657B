@@ -199,3 +199,14 @@ boots with the full 70-char cmdline.
 5. KEEP super_v5 (on phone). wipe cache+dalvik. reboot.
 EXPECT: switch_root passes -> second-stage init runs -> on-phone /etc/init/zz_blog.rc
 logger populates /metadata/blog.txt -> pull to diagnose next stage.
+
+---
+## build-9 RESULT: first-stage fully OK; second-stage init exit 127 (SELinux/enforcing wall)
+Fixed corrupt on-phone system (truncated flash) + check-free fstab + LOS-built boot. Now:
+first-stage mounts ALL partitions (metadata+dm0-3), then second-stage /system/bin/init exits
+127 instantly, logging nothing (dies before "Loading SELinux policy").
+KEY: MTK LK IGNORES boot.img cmdline -> kernel gets stock cmdline, NO androidboot.selinux=permissive
+-> boots ENFORCING. Proven: init links fine (chroot) + sepolicy compiles fine (server secilc exit0,
+vendor vers 30.0 == our mapping/30.0.cil). The 127 (clean exit, not abort=6) is unexplained pre-log.
+Full detail: FINDINGS_build9_exit127.md. Phone state: ready, sitting in TWRP, not booting.
+TWRP write lesson: unmount /system_root first; simg2img-to-dm leaves gaps -> dd raw conv=notrunc.
