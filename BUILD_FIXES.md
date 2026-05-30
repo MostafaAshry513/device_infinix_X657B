@@ -159,3 +159,43 @@ File: boot_nocheck.img. Flashing with super_v5(+mountpoints) + proper vbmeta.
 ## PAUSE POINT: e2fsck cleared; now switch_root panic after all 4 mounts
 boot_nocheck (no first-stage check) -> all of /metadata,dm-0..3 mount, then init killed
 (exitcode 0x7f00) at switch_root @1.41s. See RESUME_TOMORROW.md for full state + next steps.
+
+---
+## ROOT CAUSE of switch_root exit 127 (0x7f00): stock-ramdisk × LOS-system mismatch  [build-9]
+DIAGNOSIS (server-side, no phone needed): inspected the FULL source-build artifacts.
+- out/.../system.img root ALREADY contains /vendor /system_ext /metadata /product /odm
+  mountpoints + init->/system/bin/init symlink, all with correct build SELinux labels.
+  => the "missing mountpoints" we hand-mkdir'd (rootfs:s0) were never the real fix; the
+     built system has them labelled correctly.
+- out/.../ramdisk.img (790KB) is a PROPER LOS first-stage ramdisk (real 1.35MB init,
+  fstab.mt6761, avb/). NOT the 3KB empty ramdisk (that was the proven-tree's *prebuilt*
+  boot.img, not our build output).
+- We had been flashing boot_nocheck.img = STOCK ramdisk + modified fstab. The stock
+  first-stage init loads STOCK sepolicy, then after switch_root fails to re-exec the LOS
+  /system/bin/init (domain/linker mismatch) => exit(127) => exitcode=0x7f00 @1.41s.
+
+FIX: stop mixing. Use the FULLY LOS-built boot.img (LOS ramdisk + LOS first-stage init),
+so first->second stage handoff is LOS-to-LOS consistent.
+
+ALSO fixed in source (device/infinix/X657B/rootdir/etc/fstab.mt6761): removed `check` from
+the two first_stage_mount lines (/metadata, /tranfs) so fs_mgr never invokes e2fsck
+pre-switch_root (LOS ramdisk has no e2fsck binary). Rebuilt: `mka bootimage` (20s).
+Verified: 0 first_stage_mount lines carry `check`; cmdline =
+"bootopt=64S3,32N2,64N2 androidboot.selinux=permissive buildvariant=eng" (proven-tree
+cmdline; the "~40-char overflow" was an artifact of our hand-repacking, not the built img).
+
+vbmeta.img confirmed flags=3 (verification+hashtree disabled) => all fstab avb= flags are
+no-ops; vendor avb mismatch irrelevant.
+
+NOTE: the "~40 char MTK cmdline budget" lesson is now SUSPECT — it came from manual
+mkbootimg/abootimg repacks, not from a cleanly-built boot.img. The published proven tree
+boots with the full 70-char cmdline.
+
+### build-9 FLASH SET (minimal, ~33MB push — super_v5 already on phone, unchanged)
+1. boot.img (LOS-built, /root/android/flash_build9/boot.img)  -> dd to boot   [THE key change]
+2. vbmeta.img (flags3)            -> dd to vbmeta
+3. vbmeta_system.img             -> dd to vbmeta_system
+4. zeroed 4K                     -> dd to vbmeta_vendor
+5. KEEP super_v5 (on phone). wipe cache+dalvik. reboot.
+EXPECT: switch_root passes -> second-stage init runs -> on-phone /etc/init/zz_blog.rc
+logger populates /metadata/blog.txt -> pull to diagnose next stage.
