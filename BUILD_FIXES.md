@@ -28,3 +28,17 @@ Build env: 8-core server, -j8, ALLOW_MISSING_DEPENDENCIES=true.
    (arm 52MB / arm64 95MB / x86 64MB / x86_64 104MB) into prebuilt/<abi>/webview.apk.
 
 See device_X657B_lineage.patch + vendor_X657B_lineage.patch for exact diffs.
+
+---
+## build-8: full proven-tree LOS flashed — still early-init hang
+- Built full LineageOS from Miracleprjkt device + noophyy vendor (system 728M, system_ext 202M,
+  product 250M, boot 32M). Used stock no-encryption vendor_fixed.img (noophyy blobs == this
+  device's stock vendor). Assembled super_v5 (1.5G sparse, fits 3.4G easily). On Mega: build-8-proven-tree.
+- Flashed boot + super_v5 + (initially zeroed) vbmeta. Result: static Infinix logo ~15-20s then
+  watchdog loop — IDENTICAL to our hand-made tree. => the hang is NOT the ROM content; it's our
+  DEPLOYMENT (we hit it even with a known-working tree).
+- KEY: we had ZEROED vbmeta every attempt. Proven tree builds system WITH avb (flags 3 = disabled).
+  Flashed the BUILD's proper disabled-vbmeta (magic AVB0, not zeros) instead.
+  => boot time CHANGED 20s -> 10s (vbmeta definitely on the critical path).
+- TWRP also logs: "unable to load apex from /system_root/system/apex" (likely benign TWRP APEX limitation).
+- NEXT: read ramoops after the 10s loop (shorter time may = a real panic now, which commits to pstore).
