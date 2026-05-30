@@ -130,3 +130,12 @@ After creating /vendor + /system_ext mountpoints, fresh first-stage log shows:
 => A `check`-flagged fstab partition makes fs_mgr run /system/bin/e2fsck, which is ABSENT from the
    built system -> exit 255 -> init fatal. FIX: provide e2fsck in /system/bin (PRODUCT_PACKAGES += e2fsck)
    OR remove `check` from fstab. Quick on-phone fix: drop a working/stub e2fsck into the system.
+
+---
+## e2fsck fix attempt + Mega-mirror habit
+/system/bin/e2fsck EXISTS in the LOS system but fails to exec at first-stage ("No such file or
+directory" = its dynamic linker not resolvable pre-switch_root). Swapped in TWRP's e2fsck (interp
+/system/bin/linker, which the LOS system provides) onto dm-0:/system/bin/e2fsck + /bin/e2fsck.
+If it still fails, robust fix = remove `check` flag from the first-stage (ramdisk) fstab partition
+(likely /tranfs) so fs_mgr never runs e2fsck pre-switch_root, OR ship a STATIC e2fsck.
+(All four logical partitions already mount; this e2fsck step is the last first-stage blocker.)
