@@ -69,6 +69,13 @@ TARGET_COPY_OUT_SYSTEM_EXT := system_ext
 TARGET_COPY_OUT_VENDOR := vendor
 TARGET_COPY_OUT_PRODUCT := product
 
+# Create the /metadata mountpoint inside the system image. Without this,
+# system/core/rootdir/Android.mk (line ~102, gated on ifdef
+# BOARD_USES_METADATA_PARTITION) does NOT mkdir /metadata, so first-stage
+# init's switch_root fails: "Unable to move mount at '/metadata'" -> kernel
+# panic at ~1.4s. THIS was the original boot blocker across builds 4-7.
+BOARD_USES_METADATA_PARTITION := true
+
 # Non-SAR (system mounted at /system, not as rootfs). Required for Android 11
 # dynamic partitions.
 BOARD_BUILD_SYSTEM_ROOT_IMAGE := false
