@@ -42,3 +42,19 @@ See device_X657B_lineage.patch + vendor_X657B_lineage.patch for exact diffs.
   => boot time CHANGED 20s -> 10s (vbmeta definitely on the critical path).
 - TWRP also logs: "unable to load apex from /system_root/system/apex" (likely benign TWRP APEX limitation).
 - NEXT: read ramoops after the 10s loop (shorter time may = a real panic now, which commits to pstore).
+
+---
+## BREAKTHROUGH (fresh ramoops log!): proven-tree boot.img has an EMPTY ramdisk
+With proper vbmeta flashed, boot now PANICS at ~2.2s (not silent watchdog) -> ramoops finally
+committed a real log:
+  panic -> mount_block_root -> mount_root -> prepare_namespace  (cmdline root=/dev/ram)
+= kernel cannot mount root fs (no initramfs).
+Boot.img header compare:
+  stock boot.img    ramdisk size = 742970 bytes (real first-stage ramdisk)
+  proven-tree boot  ramdisk size = 3304 bytes  (EMPTY - no first-stage init!)
+=> The Miracleprjkt tree build produced a boot.img with no usable ramdisk (build-config quirk;
+   likely expects a prebuilt/recovery-as-boot ramdisk not wired in our setup).
+FIX: use the working STOCK ramdisk (stock boot.img / boot-final) which DOES contain first-stage
+init (proven: it runs init to ~25s). Pair stock ramdisk + full-LOS super_v5 + proper disabled-vbmeta.
+Note: this also means our earlier ~25s hangs were with a WORKING ramdisk (init running) - the real
+remaining question is the 25s init hang, now retested with full LOS + proper vbmeta.
