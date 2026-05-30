@@ -147,3 +147,10 @@ Same panic. ROBUST FIX: repack the boot ramdisk to remove `check` from first-sta
 which produced a broken ramdisk earlier), preserving exact stock header:
   base=0x40000000 kernel_off=0x8000 ramdisk_off=0x11b00000 tags_off=0x7880000 pagesize=2048 hdrv2,
   cmdline keeps "bootopt=64S3,32S1,32S1", dtb from stock.
+
+---
+## FIX: repacked boot.img with `check` removed from first-stage fstab (/metadata,/tranfs)
+Used build's mkbootimg (stock header: base 0x40000000, k_off 0x8000, rd_off 0x11b00000,
+tags 0x7880000, pg 2048, hdrv2, cmdline "bootopt=64S3,32S1,32S1 buildvariant=user", stock dtb).
+Real 742554-byte ramdisk preserved. Now fs_mgr won't run e2fsck pre-switch_root.
+File: boot_nocheck.img. Flashing with super_v5(+mountpoints) + proper vbmeta.
