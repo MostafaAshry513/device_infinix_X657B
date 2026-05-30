@@ -139,3 +139,11 @@ directory" = its dynamic linker not resolvable pre-switch_root). Swapped in TWRP
 If it still fails, robust fix = remove `check` flag from the first-stage (ramdisk) fstab partition
 (likely /tranfs) so fs_mgr never runs e2fsck pre-switch_root, OR ship a STATIC e2fsck.
 (All four logical partitions already mount; this e2fsck step is the last first-stage blocker.)
+
+---
+## e2fsck swap FAILED (TWRP e2fsck also dynamic /system/bin/linker, unresolvable first-stage)
+Same panic. ROBUST FIX: repack the boot ramdisk to remove `check` from first-stage fstab entries
+(so fs_mgr never invokes e2fsck pre-switch_root). Repack with the BUILD's mkbootimg (NOT abootimg,
+which produced a broken ramdisk earlier), preserving exact stock header:
+  base=0x40000000 kernel_off=0x8000 ramdisk_off=0x11b00000 tags_off=0x7880000 pagesize=2048 hdrv2,
+  cmdline keeps "bootopt=64S3,32S1,32S1", dtb from stock.
