@@ -97,3 +97,15 @@ Findings:
   that stalls the stock first-stage AVB; the build's flags-3 vbmeta is a VALID "disabled" descriptor.
 - NEXT: pristine stock boot + build's proper disabled-vbmeta (flags 3) + logger system. If first
   stage cleanly skips AVB -> should reach second-stage (blog.txt appears).
+
+---
+## BIG PROGRESS: working ramdisk + bootopt + proper vbmeta -> first-stage init RUNS
+Fresh log (panics:1, cmdline has bootopt):
+  init: init first stage started!
+  mount /metadata (md_udc) OK
+  EXT4-fs (dm-0): mounted filesystem  <- system mounted
+  Kernel panic - Attempted to kill init! exitcode=0x00007f00  @1.376s
+exitcode 0x7f00 == the original switch_root "/metadata" failure signature. So now EVERYTHING else
+works (ramdisk load, first-stage init, /metadata mount, system mount) and we're back to the
+switch_root-moves-/metadata-into-/system/metadata step. Checking if /system/metadata exists in
+super_v5's system; if missing, add it (ext4 surgery) -> switch_root should pass -> second-stage.
