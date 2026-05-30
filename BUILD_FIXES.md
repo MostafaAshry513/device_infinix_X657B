@@ -119,3 +119,14 @@ init killed (exitcode 0x7f00). Created the two missing mountpoint dirs via
 `mount -o rw,context=u:object_r:rootfs:s0` + mkdir (recovery SELinux blocks default mkdir).
 Now all of /vendor /system_ext /product /metadata exist; e2fsck clean. Rebooting:
 pristine stock boot (bootopt, working ramdisk) + proper vbmeta + this system.
+
+---
+## NEAR-BOOT: all 4 logical partitions mount; init dies on MISSING /system/bin/e2fsck
+After creating /vendor + /system_ext mountpoints, fresh first-stage log shows:
+  mount /metadata OK; EXT4 dm-0(system) dm-1(system_ext) dm-2(vendor) dm-3(product) ALL mounted!
+  e2fsck: executing /system/bin/e2fsck failed: No such file or directory
+  e2fsck: e2fsck terminated by exit(255)
+  Kernel panic - Attempted to kill init! exitcode=0x00007f00  @1.207s
+=> A `check`-flagged fstab partition makes fs_mgr run /system/bin/e2fsck, which is ABSENT from the
+   built system -> exit 255 -> init fatal. FIX: provide e2fsck in /system/bin (PRODUCT_PACKAGES += e2fsck)
+   OR remove `check` from fstab. Quick on-phone fix: drop a working/stub e2fsck into the system.
