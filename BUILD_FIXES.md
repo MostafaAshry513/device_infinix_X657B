@@ -58,3 +58,27 @@ FIX: use the working STOCK ramdisk (stock boot.img / boot-final) which DOES cont
 init (proven: it runs init to ~25s). Pair stock ramdisk + full-LOS super_v5 + proper disabled-vbmeta.
 Note: this also means our earlier ~25s hangs were with a WORKING ramdisk (init running) - the real
 remaining question is the 25s init hang, now retested with full LOS + proper vbmeta.
+
+---
+## DEEP DIVE: "VFS: Unable to mount root fs" — ramdisk/initramfs not loading
+With proper vbmeta we get fresh ramoops on each fail. Definitive panic:
+  [EXFAT] trying to mount...
+  Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(1,0)
+unknown-block(1,0) = /dev/ram0. Kernel never received the ramdisk as initramfs; it falls back to
+mounting root=/dev/ram0 as a raw block device, finds no fs, panics. So second-stage init never runs
+(our /etc/init logger never produces /metadata/blog.txt -> confirms first-stage/pre-init failure).
+
+Boot.img ramdisk audit (gzip cpio, NO MTK ROOTFS header on this device):
+- stock boot.img:    ramdisk 742970 B (real, OEM)  -> SHOULD load
+- los_boot_v5 (built from Miracleprjkt tree): ramdisk 3304 B (EMPTY) -> can't mount root
+- boot-final (abootimg-repacked long ago): ramdisk broken -> can't mount root
+
+Findings:
+- vbmeta: ZEROED is better than the build's "disabled" vbmeta here. Proper vbmeta_system made
+  first-stage attempt AVB/verity and fail even earlier; zeroed = AVB fully off.
+- Even a CLEAN stock 742K ramdisk + cmdline patched to "androidboot.selinux=permissive" still
+  mount_root-panics. Suspect: replacing stock cmdline dropped "bootopt=64S3,32S1,32S1" — the MTK
+  boot param that governs ramdisk/root setup. Removing it appears to break initramfs loading.
+- NOW TESTING: pristine unmodified stock boot (full cmdline incl bootopt) to confirm the ramdisk
+  loads. If it loads -> bootopt is required -> must keep bootopt AND fit selinux=permissive (cmdline
+  budget is tight; bootloader "cmdline overflow" >~40 chars of our portion).
