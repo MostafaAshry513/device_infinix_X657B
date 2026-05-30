@@ -76,3 +76,13 @@ A correctly-built Android 11 system image MUST contain these empty dirs so first
   - dtbo.img (8MB, dumped from phone /dev/block/by-name/dtbo)
 - NEXT: create sepolicy/ dir, copy prebuilts into device tree, build lineage_X657B
 - NOTE: building from clean LOS source should AUTO-create proper root mountpoints (/metadata etc.), fixing the switch_root root cause without manual ext4 surgery.
+
+---
+## BUILD SUCCESS (system.img) — 2026-05-30
+- Fixed root cause: lineage_X657B.mk now inherits handheld_system.mk + telephony_system.mk
+  → PRODUCT_BOOT_JARS 0→12, hiddenapi-stub-flags.txt builds, no more "No boot DEX files".
+- `mka systemimage` → build completed successfully (50:41). system.img = 617MB.
+- hiddenapi-stub-flags.txt = 40MB (the step that failed at 99% before — now passes).
+- NOW building system_ext + product images, then assembling super.img.
+- Architectural note: we now have a real Android 11 handheld base + Go trim layer.
+  Full non-Go Android 11 later = drop go_defaults/common_mini_go (~1-line change).
