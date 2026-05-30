@@ -75,3 +75,33 @@ ramoops.console_size = 0x40000 (256KB); captured file = 227KB ending at panic.
 ## How to reproduce our checks
 Device tree + all docs: GitHub MostafaAshry513/device_infinix_X657B,
 Mega /X657B-build/roms/build-9-los-boot/ (ramoops_build9.txt, FINDINGS_build9_exit127.md).
+
+---
+## ROUND 2 (helper-process theory tested + ruled out)
+- **secilc**: interp=/system/bin/bootstrap/linker; NEEDED only libc/libm/libdl; full closure
+  = 4 libs, all in /system/lib/bootstrap; executable. **Boot-safe.**
+- **linkerconfig**: ELF 32-bit **statically linked** (zero shared deps). Cannot fail to load.
+  Also runs AFTER "Loading SELinux policy" (per chroot trace), so not the pre-log failure.
+- init confirmed to use EXTERNAL secilc + linkerconfig (strings: /system/bin/secilc,
+  /system/bin/linkerconfig, "Loading SELinux policy", "failed to execute linkerconfig").
+- **Ramoops did NOT wrap**: captured buffer starts at [0.000000] "Kernel command line",
+  227KB < 256KB ring. => the missing "Loading SELinux policy" line is REAL; init died before
+  it. The 1s panic/do_exit gap is mrdump delay, not init runtime. (So precompiled_sepolicy
+  would NOT help — failure is before the compile stage.)
+- Conclusion: init dies in the window [second-stage main() entry .. before
+  SelinuxInitialize()/"Loading SELinux policy"], clean exit(127). The on-device chroot of the
+  SAME init passes this exact window. => real-early-boot-only runtime condition.
+
+### What's left in that window (Android 11 SetupSelinux, before the first log)
+SetStdioToDevNull (mknod/open /dev/null) -> InitKernelLogging -> SelinuxSetupKernelLogging
+-> SelinuxInitialize ("Loading SELinux policy"). All failure paths there are PLOG(FATAL)=abort(6),
+NOT clean 127. So a clean 127 here is genuinely odd. Open question for expert: what produces a
+clean exit(127) from PID1 in that window, only in real boot (switch_root'd PID1) and not chroot?
+Candidates we can't rule out remotely: mount-namespace/propagation after switch_root; property
+service init; an early helper we haven't spotted; or the bootstrap linker behaving differently
+under the real post-switch_root mount setup.
+
+### Our recommended next step (need a decision)
+Static analysis is exhausted. Propose REAL second-stage logging via a tiny STATIC wrapper at
+/system/bin/init (logs argv + a marker to /metadata, then execs the real init renamed) — needs
+no kernel cmdline and no rebuild. Alternatively rebuild init with extra early kmsg logging.
