@@ -306,3 +306,13 @@ conflict). QUICK FIX (on-phone, no rebuild): remove the `reboot_on_failure ...` 
 boringssl_self_test32/64 in init.rc -> boot continues past. PROPER FIX later: resolve 64/32 arch config
 (drop core_64_bit inherit or build true 64-bit). chroot run of the binary gives 127 = apex-linker missing
 in chroot (artifact), not the real cause.
+
+---
+## 2026-05-31 SERVER TESTING enabled + boringssl PASSES standalone -> issue is SELinux enforcing
+Set up server-side ARM testing: `unshare -rpf --mount-proc bash -c "qemu-arm-static -L <sysroot>
+<sysroot>/system/bin/bootstrap/linker <sysroot>/system/bin/<bin>"` (unshare low-PID ns REQUIRED; 32-bit
+bionic aborts if host PID>65535). Ran boringssl_self_test32 -> EXIT 0 (PASSES). So libcrypto is FINE;
+the on-device self-test failure is ENVIRONMENTAL = SELinux ENFORCING (MTK LK drops boot.img cmdline so
+permissive never applies) -> test denied (e.g. writing its flag) -> exits nonzero -> was rebooting.
+reboot_on_failure already removed on-phone. REAL FIX: force permissive in init (selinux.cpp, after
+SelinuxInitialize -> security_setenforce(0)) and/or permissive policy. Wrote AGENT_HANDOFF.md (resume brief).
