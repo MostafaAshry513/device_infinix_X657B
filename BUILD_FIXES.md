@@ -371,3 +371,69 @@ ROOT = apex flattening/build-config inconsistency (likely tied to core_64_bit-vs
 FIX directions: (a) build consistently (TARGET_FLATTEN_APEX or proper updatable apex) + rebuild; (b) ensure
 apexd activates com.android.runtime; (c) workaround: point /system/bin/linker at /system/bin/bootstrap/linker.
 Handed to the team to fix. init itself runs (bootstrap linker); only services (apex linker) fail.
+
+---
+## 2026-05-31 FIXED — exit-127 ROOT CAUSE: core_64_bit.mk caused hybrid APEX (dirs+.apex files)
+### DIAGNOSIS
+The device tree had three conflicting APEX configs:
+1. BoardConfig.mk: `OVERRIDE_TARGET_FLATTEN_APEX := true` (flatten APEXes into dirs)
+2. device.mk: `$(call inherit-product, updatable_apex.mk)` (produce updatable .apex files)
+3. lineage_X657B.mk: `$(call inherit-product, core_64_bit.mk)` (64-bit support, but BoardConfig
+   says TARGET_ARCH=arm, TARGET_CPU_ABI=armeabi-v7a — 32-bit only)
+
+The `updatable_apex.mk` is guarded by `ifneq ($(OVERRIDE_TARGET_FLATTEN_APEX),true)` so it's a
+no-op when OVERRIDE is true. The REAL culprit was `core_64_bit.mk`: it caused the build system to
+produce BOTH 32-bit flattened APEX dirs AND 64-bit .apex files for every APEX module (com.android.runtime,
+com.android.art.release, com.android.adbd, conscrypt, media, media.swcodec — ALL of them had both
+a directory and a .apex file with the same name). The resulting `/system/apex/` hybrid layout meant
+the runtime APEX was never properly flattened → `/apex/com.android.runtime/bin/linker` was not
+resolvable → every service (which uses interp `/system/bin/linker` → `/apex/com.android.runtime/bin/linker`)
+exited 127 (dynamic linker not found).
+
+### FIX
+Two changes to `/root/android/lineage/device/infinix/X657B/`:
+
+1. **lineage_X657B.mk** — removed `$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)`.
+   This device is 32-bit ARM only (TARGET_ARCH=arm, TARGET_CPU_ABI=armeabi-v7a, 32-bit zygote in vendor
+   init.zygote32.rc). Including core_64_bit.mk caused APEX ABI confusion → hybrid dir+file layout.
+
+2. **device.mk** — kept `updatable_apex.mk` (needed for APEX module inclusion in system.img; its
+   `TARGET_FLATTEN_APEX := false` is blocked by OVERRIDE_TARGET_FLATTEN_APEX=true guard, so it's harmless).
+   Verified: BoardConfig.mk's `OVERRIDE_TARGET_FLATTEN_APEX := true` remains (forces flattened APEX dirs,
+   no .apex files).
+
+Also confirmed: the 64-bit zygote init.zygote64_32.rc was removed from the build output, and the
+CTS shim .apk (which was inside com.android.apex.cts.shim.apex) was moved to standalone APKs.
+
+### RESULT (verified in system.img)
+- OLD /system/apex/: **21 .apex files + mixed dirs** (hybrid — BROKEN)
+- NEW /system/apex/: **21 directories, ONLY 1 .apex file** (com.android.apex.cts.shim.apex — harmless CTS shim)
+- /system/apex/com.android.runtime/ has bin/linker + lib/ → fully flattened, linker resolved
+- /system/bin/linker → /apex/com.android.runtime/bin/linker (correct symlink)
+- /system/apex/com.android.runtime/bin/linker: ELF 32-bit ARM static-pie (real linker, not missing)
+- build log confirms: `Removed: init.zygote64_32.rc` (64-bit zygote gone)
+
+### SERVER QEMU VALIDATION
+```
+unshare -rpf --mount-proc bash -c "qemu-arm-static -L /tmp/qemu_sys \
+  /tmp/qemu_sys/system/bin/bootstrap/linker /tmp/qemu_sys/system/bin/servicemanager"
+→ linker loads, servicemanager executes (dies on missing /dev/binder — expected in chroot)
+→ NO exit 127, NO linker error
+```
+surfaceflinger: CANNOT LINK "libstatssocket.so" — APEX-path issue in chroot only (on-device apexd
+sets up linker namespaces; lib IS present at /system/apex/com.android.os.statsd/lib/)
+zygote: CANNOT LINK "libnativeloader.so" — same chroot artifact.
+
+### DEPLOYMENT (build-10 / super_v6)
+- Built system.img with fix (720M sparse). Assembled super_v6 (1.5G sparse) with:
+  system (new, 968M raw) + vendor_fixed (stock noophyy, 320M raw) + product (250M sparse) + system_ext (202M sparse).
+- Pushed system_v6.img only (720MB, 130s over SSH tunnel), dd'd to /dev/block/by-name/system.
+- Boot partition: working_ref stock boot 57e6f9def... (already on phone, verified md5).
+- Vbmeta: flags-3 (AVB disabled, already on phone from flash_build9).
+- Formatted /data + /metadata, cleared pstore. Rebooted.
+- Device NOT back on adb after ~5min → either booting Android (success!) or in bootloop needing
+  manual TWRP key-combo recovery.
+- Files: /root/android/flash_build9/system_v6.img (on phone as /sdcard/system_v6.img),
+  super_v6.img (1.5G, /root/android/flash_build9/super_v6.img).
+- NEXT: user must check phone screen — if boot animation showing = SUCCESS (wait for adb),
+  if logo→reboot→recovery = need ramoops/wrapinit.log diagnosis.
