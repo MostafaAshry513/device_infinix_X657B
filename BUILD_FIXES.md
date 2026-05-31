@@ -261,3 +261,12 @@ NEXT: instrumented SecondStageMain (init_s2, wrapinit_log after PropertyInit/Sta
 SetupMountNamespaces/InitializeSubcontext/LoadBootScripts/before-epoll) deployed; reboot to read which
 S2 milestone is last -> pinpoint + fix. Deploy method: simg2img super_v5->super; mount mapper/system rw
 (umount /system_root first); cp init -> /system/bin/init; boot+vbmeta stay 57e6+flags3; read /metadata/wrapinit.log.
+
+---
+## 2026-05-31 team hypothesis (deepseek-v4-pro) — subcontext child is prime suspect
+init reaches SecondStageMain then exit 127. Team built init_s2 (SecondStageMain instrumented with
+wrapinit_log after PropertyInit/StartPropertyService/SetupMountNamespaces/InitializeSubcontext/
+LoadBootScripts/before-epoll). Hypothesis: if last breadcrumb == "InitializeSubcontext", the forked
+`init subcontext` child is failing (CANNOT LINK in the VENDOR linker namespace) -> explains the missing
+"ENTER main argv1=subcontext" breadcrumb and the clean 127. Then: compare LOS vs GSI /system|/vendor
+ld.config*.txt and/or instrument subcontext.cpp. init_s2 deployed to phone; awaiting /metadata/wrapinit.log.
