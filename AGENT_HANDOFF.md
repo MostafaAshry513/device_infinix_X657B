@@ -1,9 +1,15 @@
 # AGENT HANDOFF — Infinix X657B LineageOS ROM (stable resume brief; works from ANY stop point)
 
+## ✅ 2026-05-31: THE ROM NOW BOOTS TO HOME. Next work = TEST + POLISH, not bring-up.
+LineageOS 18.1-20260531-UNOFFICIAL-X657B boots fully (boot_completed=1, launcher up, SELinux ENFORCING,
+/data f2fs non-encrypted). **READ `/root/android/TEAM_TESTING_PLAN.md` FIRST — it has the exact next tasks,
+commands, the working recipe (don't break it), and how to reach the phone.** Then this file + BUILD_FIXES.md.
+
 You are continuing a long effort to boot a **full working LineageOS 18.1 ROM** on an **Infinix Smart 5
 X657B** (MediaTek **MT6761**, Android 11, **32-bit userspace only**, non-A/B, dynamic partitions/`super`,
-3 GB, bootloader unlocked). The phone is driven from a Mac over an SSH reverse tunnel; **`adb` works from
-THIS server**; the phone usually sits in **TWRP recovery**. `fastboot` is NOT available here (USB-only).
+3 GB, bootloader unlocked). The phone is driven from a Mac over an SSH reverse tunnel. adb/fastboot run ON
+THE MAC (`ssh -p 2222 brucewayne@localhost /usr/local/bin/{adb,fastboot}`); server wrappers `~/bin/padb`
+and `~/bin/bootwatch`. The phone may be booted to Android (adb=device) or in TWRP recovery.
 
 ## ⭐ STEP 1 — LEARN THE CURRENT STATE (do this first, every time)
 The live state is ALWAYS at the **end of `/root/android/BUILD_FIXES.md`** (mirrored to GitHub
