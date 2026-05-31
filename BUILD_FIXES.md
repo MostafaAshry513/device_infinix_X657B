@@ -752,3 +752,13 @@ boringssl reboot_on_failure, but if /apex works boringssl self-test PASSES (no l
 STALE+HYBRID (21 .apex files + 7 leftover dirs, system.img mtime old 13:18). PLAN (before doing): run
 `make installclean` (clears staged PRODUCT_OUT incl /system/apex, keeps soong intermediates) then
 `mka systemimage`; verify /system/apex = flattened DIRS only (no .apex). Then shrink-to-fit + deploy.
+
+## 2026-05-31 build-13 BUILT OK (flattened) — deploying
+system.img rebuilt after installclean: /system/apex = 20 flattened DIRS + 1 shim (NO .apex files);
+com.android.runtime/apex_manifest.pb PRESENT (the thing build-12 lacked) + bin/linker present;
+raw fs = 968802304 = EXACTLY the logical system partition (fits, no shrink). ro.apex.updatable=true in
+system but vendor's false wins -> apexd flattened-exits, init bind-mounts the flattened dirs (now have
+manifests) -> /apex should populate. PLAN (before doing): cp -> system_v13.img; scp server->Mac; adb push;
+simg2img -> /dev/block/mapper/system; clear /metadata+pstore; reboot with CLEAN tree init.rc (no DUMPKLOG
+marker so it can boot fully; boringssl self-test should PASS once linker exists). boot 57e6 + vbmeta flags-3.
+If boots -> DONE. If crash-loops -> redeploy DUMPKLOG init.rc to capture init's flattened bind-mount step.
