@@ -791,3 +791,27 @@ mmcblk0p39; no fuser/dmsetup to clear). Raw dd works. PLAN (before doing): dd ze
 "formattable" flag formats /data as f2fs (matches vendor fstab) -> /data mounts (NON-encrypted: fstab has no
 fileencryption/forceencrypt) -> zygote/system_server -> boot_completed. Verify via logcat (adb works on boot).
 Fallback if fs_mgr doesn't auto-format: user does TWRP GUI Wipe>Advanced>Data>Change File System>F2FS.
+
+---
+## 2026-05-31 ===================== ✅ FULL ROM BOOTS TO HOME SCREEN =====================
+LineageOS 18.1-20260531-UNOFFICIAL-X657B (build-13) FULLY BOOTED on Infinix X657B:
+- sys.boot_completed=1 ; Android 11 ; launcher (com.android.launcher3 QuickstepLauncher) is the resumed
+  activity ; SystemUI running ; zygote+surfaceflinger running.
+- /data = f2fs, mounted; ro.crypto.state=unsupported => NON-ENCRYPTED (as requested).
+- SELinux = ENFORCING (real, not a permissive hack).
+THE FULL CHAIN OF ROOT CAUSES, SOLVED:
+ 1. Boot recipe: device REAL stock boot (md5 57e6) + vbmeta flags-3 (AVB disabled).
+ 2. APEX: stock VENDOR mandates FLATTENED apex (vendor/build.prop ro.apex.updatable=false WINS over system).
+    Must build OVERRIDE_TARGET_FLATTEN_APEX=true (+ core_64_bit.mk removed to avoid hybrid). Updatable .apex
+    left /apex empty -> linker missing -> every service 127. (Diagnosed via init klogctl dump to /metadata.)
+ 3. Kernel is ENFORCE-LOCKED (CONFIG_SECURITY_SELINUX_DEVELOP/BOOTPARAM/DISABLE unset) -> permissive
+    impossible; the (correctly-built flattened) enforcing policy works fine, like GSIs.
+ 4. /data wouldn't mount: vendor fstab /data=f2fs but partition was ext4 (prior TWRP format). dd-wiped the
+    ext4 superblock (make_f2fs blocked by TWRP O_EXCL) -> fs_mgr "formattable" formatted /data f2fs on boot
+    -> /data mounts -> zygote starts -> boot_completed.
+DEPLOYED: system_v13.img (md5 7a2b3b7ec69a0227d4f00d21c56e3eba, flattened) on the logical system partition;
+boot 57e6; vbmeta flags-3. Init currently carries debug instrumentation (wrapinit breadcrumbs) — works, but
+strip for a clean production build.
+REMAINING POLISH (not blockers): (a) rebuild init WITHOUT instrumentation; (b) assemble a permanent
+super_v13 (system_v13+vendor_fixed+product+system_ext) and/or a flashable zip so it survives a clean flash;
+(c) verify it persists a normal reboot; (d) functional pass (wifi/RIL/audio/sensors).
