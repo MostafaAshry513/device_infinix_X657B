@@ -537,3 +537,28 @@ Test: `fastboot reboot` then poll ADB
 ├── archive/
 └── backups/
 ```
+
+---
+## 2026-05-31 ROOT CAUSE of the 127s NAILED: ro.apex.updatable=true vs FLATTENED apex
+### EVIDENCE (on-phone, build-10 system, via adb in TWRP)
+- /system/apex = 20 flattened DIRS + 1 harmless shim .apex (clean, build-10 fix intact).
+- /system/bin/linker = proper symlink -> /apex/com.android.runtime/bin/linker (band-aid did NOT leak).
+- wrapinit.log: `SVC start: apexd-bootstrap` then `SVC died: apexd-bootstrap code=1 status=0`
+  (apexd --bootstrap EXITS 0 / "success") — yet EVERY later dynamically-linked binary 127s
+  (tune2fs, teei_daemon, vdc...). So apexd ran but populated NOTHING into /apex.
+- /system/build.prop: **ro.apex.updatable=true**  ← THE BUG.
+
+### WHY
+Apexes are FLATTENED (dirs), but ro.apex.updatable=true puts apexd in UPDATABLE mode: it looks for
+.apex images to verify+loop-mount, finds none, bind-mounts nothing, exits 0 → /apex stays empty →
+/apex/com.android.runtime/bin/linker missing → every service/exec exits 127.
+For flattened apex, ro.apex.updatable MUST be false (then apexd bind-mounts /system/apex/* -> /apex/*).
+Leaked in from updatable_apex.mk (sets ro.apex.updatable=true); build-10 wrongly assumed it harmless.
+
+### QUICK ON-PHONE TEST (no rebuild)
+Flipped /system/build.prop ro.apex.updatable=true->false, cleared wrapinit.log+pstore, rebooted to system.
+Watching: boot_completed=1 => SUCCESS; back to recovery => read fresh wrapinit. (result pending)
+
+### PROPER FIX (team build-12, in progress)
+Bake ro.apex.updatable=false for this flattened-apex device (drop updatable_apex.mk's prop, or force
+PRODUCT_PROPERTY_OVERRIDES ro.apex.updatable=false), rebuild systemimage.
