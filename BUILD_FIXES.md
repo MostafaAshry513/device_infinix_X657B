@@ -344,3 +344,16 @@ reboot,bootloader,bootstrap-apexd-failed). Vendor rc = 0. Removed all 3 lines. S
 appeared right after boringssl_self_test32_vendor was likely apexd/bpfloader failing (reboot_on_failure),
 not the vendor boringssl per se. Rebooted to test. NOTE: if apexd-bootstrap is genuinely failing, boot
 continues now but APEXes may be unmounted -> later breakage; watch next breadcrumbs.
+
+---
+## 2026-05-31 HUGE PROGRESS — boot reaches zygote/surfaceflinger; core services crash-LOOP -> fastboot
+With permissive + all reboot_on_failure removed, boot goes deep (1922 breadcrumbs): past boringssl,
+mount_all/vold, vendor HALs, logd, servicemanager, hwservicemanager, zygote, surfaceflinger, keystore,
+Magisk (/debug_ramdisk/magisk --zygote-restart). But core services crash-LOOP: logd x5, servicemanager x5,
+hwservicemanager x4, vold x4, zygote x4, surfaceflinger x4. First deaths: logd(292) -> servicemanager(301)
+-> zygote(323) -> cascade (onrestart/class_restart). adbd NEVER starts (no live logcat). No tombstones
+(/data wiped), no pmsg (logd dies), ramoops stale (no panic; bootloader fail-counter -> fastboot).
+SERVER TEST (qemu): servicemanager LINKS fine (only fails on missing /dev/binder, which exists on device)
+=> NOT a lib/link issue; it's a RUNTIME crash. NEXT: instrument Service::Reap to log exit status/signal in
+the "SVC died" breadcrumb -> first service with SIGSEGV/SIGABRT = the true root. Suspects: VINTF mismatch
+(our system vs stock vendor) cascading via hwservicemanager; Magisk interference; 64/32 (core_64_bit) config.
