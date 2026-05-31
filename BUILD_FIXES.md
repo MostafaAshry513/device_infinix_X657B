@@ -210,3 +210,54 @@ KEY: MTK LK IGNORES boot.img cmdline -> kernel gets stock cmdline, NO androidboo
 vendor vers 30.0 == our mapping/30.0.cil). The 127 (clean exit, not abort=6) is unexplained pre-log.
 Full detail: FINDINGS_build9_exit127.md. Phone state: ready, sitting in TWRP, not booting.
 TWRP write lesson: unmount /system_root first; simg2img-to-dm leaves gaps -> dd raw conv=notrunc.
+
+---
+## build-9 DEEP DEBUG (instrumented init) — blocked by device booting to recovery
+Confirmed via /metadata breadcrumbs (durable) + ramoops:
+- second-stage /system/bin/init: main() NEVER runs (no /metadata/wrapinit.log) -> dies in the
+  dynamic LOADER before main; clean exit(127) (do_exit->sys_exit_group, NOT abort/6).
+- Built instrumented init (breadcrumbs in main + SetupSelinux) and instrumented FIRST-stage
+  init (FSB after DoFirstStageMount/FreeRamdisk/SetInitAvb + LD_DEBUG=3 + FSWRAP before execv).
+  Deployed (boot partition md5 == flashed image; /system/bin/init replaced; verified on flash).
+- RESULT: NO breadcrumb ever appears (fsboot.log/fswrap.log/wrapinit.log absent), ramoops stays
+  BYTE-IDENTICAL across every reboot (md5 108f7daa...). `rm` of pstore clears the inode but the
+  console DRAM persists; TWRP/recovery does not overwrite console-ramoops.
+- CONCLUSION: the ROM has not booted since the FIRST build-9 attempt. Every `adb reboot` from
+  TWRP lands back in recovery after ~64-110s. Likely MTK preloader KE(kernel-exception)->recovery
+  protection after the initial panic bootloop. para(BCB) is all-zero (clean), so it's not BCB.
+- So remote instrumentation is blocked until the device will boot the ROM again. Need: manual
+  cold boot-to-system observation, and/or clear the MTK KE/boot-fail state.
+TWRP file-write lesson reconfirmed: dd to /dev/block/by-name/boot persists (md5 verified);
+logical-partition writes need /system_root unmounted.
+
+---
+## ROOT CAUSE of "nothing boots / always recovery" (build-9 era) — vbmeta flags!
+USER INSIGHT: their TWRP backup boots, our flashes don't -> find the diff.
+The working backup is a 64-bit GSI (treble_a64_bgZ-userdebug_11) whose TOP-LEVEL
+vbmeta has flags=3 (AVB VERIFICATION DISABLED). Device is unlocked running custom images.
+We regressed by flashing STOCK vbmeta flags=0 (AVB ENABLED) -> bootloader rejects non-OEM
+partitions -> drops to recovery BEFORE the kernel runs -> every ramoops was the stale first
+panic (RAM preserved across warm reboots; recovery doesn't overwrite console-ramoops).
+RULE FOR THIS DEVICE: vbmeta MUST be flags=3 (disabled). NEVER flash stock flags=0 vbmeta.
+Working set saved: /root/android/working_ref/{boot,vbmeta,vbmeta_system,vbmeta_vendor}.emmc.win
+(boot md5 57e6f9def..., stock boot md5 ed53d6a20... -> working boot != stock boot).
+Backup also has super.emmc.win (3.4G, GSI) + data.f2fs — restoring it = working phone.
+
+---
+## 2026-05-31 BREAKTHROUGH — working boot recipe + exit-127 isolated to SecondStageMain
+KEY: device only boots with vbmeta flags=3 (AVB disabled) + the device's REAL stock boot (md5 57e6f9def...,
+NOT the Flash_File boot ed53d6a2...). User's TWRP backup (a GSI) proved this recipe. Saved proven files in
+/root/android/working_ref/{boot,vbmeta,vbmeta_system,vbmeta_vendor}.emmc.win.
+With recipe = stock boot 57e6 + flags-3 vbmeta + our LOS super_v5 + an INSTRUMENTED /system/bin/init,
+/metadata/wrapinit.log (fsync-durable) finally captured the real flow:
+  first-stage -> selinux_setup -> SetupSelinux (SelinuxInitialize OK, policy loaded) -> re-exec ->
+  second_stage -> "main -> SecondStageMain" -> THEN init exits 127 (clean do_exit/sys_exit_group, NOT abort).
+=> ALL prior theories DEAD (loader/missing-lib/AVB/sepolicy). Failure is INSIDE init.cpp SecondStageMain.
+A GSI super boots on the SAME boot, so it's our LOS system specifically.
+The qwen-agent's recovery-logcat "missing confirmationui/libsoft_attestation_cert" was a RED HERRING:
+both libs ARE present in our build (system/lib + vendor/lib); those CANNOT-LINK errors were TWRP-recovery
+context (/system/lib not on recovery's linker path), not our ROM boot.
+NEXT: instrumented SecondStageMain (init_s2, wrapinit_log after PropertyInit/StartPropertyService/
+SetupMountNamespaces/InitializeSubcontext/LoadBootScripts/before-epoll) deployed; reboot to read which
+S2 milestone is last -> pinpoint + fix. Deploy method: simg2img super_v5->super; mount mapper/system rw
+(umount /system_root first); cp init -> /system/bin/init; boot+vbmeta stay 57e6+flags3; read /metadata/wrapinit.log.
