@@ -659,3 +659,21 @@ INFRA NOTES: adb/fastboot reach the phone via the Mac over reverse tunnel (serve
 - Path: scp server->Mac:/tmp (708MB over tunnel) -> adb push -> phone /sdcard -> simg2img to
   /dev/block/mapper/system -> e2fsck -> clear /metadata+pstore -> reboot. boot 57e6 + vbmeta flags-3 unchanged.
 - EXPECT: apexd loop-mounts /apex/com.android.runtime (kernel has loop+dm-verity) -> services link -> boot.
+
+---
+## 2026-05-31 ===== REAL ROOT CAUSE: SELinux ENFORCING (permissive-force never worked) =====
+Full writeup: FINDINGS_apex_selinux.md (GitHub + Mega).
+- On-device: /sys/fs/selinux/enforce = 1 (ENFORCING) at runtime, captured via init.rc builtin
+  `copy /sys/fs/selinux/enforce /metadata/dbg_enforce.txt` after apexd-bootstrap.
+- Under enforcing, apexd's mounts are DENIED -> apexd-bootstrap exits 0 but /apex never populated ->
+  /apex/com.android.runtime/bin/linker missing -> every service exits 127. (Same in flattened AND updatable
+  apex -> apex-mode was never the cause.) build-12 updatable apex was verified correct but irrelevant to the wall.
+- WHY permissive-force fails: selinux.cpp SelinuxInitialize() sets enforce=1 (line 480, is_enforcing=true
+  because StatusFromCmdline defaults ENFORCING and MTK strips cmdline), THEN our security_setenforce(0)
+  (line 492) is silently DENIED once enforcing (return unchecked). Net = enforcing.
+- FIX TO TRY FIRST: selinux.cpp:95 default SELINUX_ENFORCING -> SELINUX_PERMISSIVE so IsEnforcing()=false
+  -> never flips enforcing -> setenforce(0) sticks. Cheap test: `mka init`, deploy ONLY the ~2MB init binary,
+  reboot, check enforce=0 + /apex populates.
+- OPEN: why apexd denied under enforcing on this build (likely LOS-system + STOCK-vendor sepolicy mismatch);
+  capture real AVC denials next session. SECONDARY: bake boringssl reboot_on_failure removal into SOURCE.
+- STATUS: user asleep; no further device actions. glm-5.1 researching -> flash_build9/glm_research.txt.
