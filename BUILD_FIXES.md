@@ -746,3 +746,9 @@ PLAN (logged BEFORE doing, per user request) — build-13 flattened, vendor-matc
     step (this is where build-10, also flattened, mysteriously failed before we had the klog tool).
 Note: deployed init has the klog-capture code (harmless without the marker). The build's init.rc restores
 boringssl reboot_on_failure, but if /apex works boringssl self-test PASSES (no loop).
+
+## 2026-05-31 build-13 note: flatten flag didn't invalidate cache -> forcing clean re-stage
+`mka systemimage` after re-adding OVERRIDE_TARGET_FLATTEN_APEX said "ninja: no work to do"; out tree was
+STALE+HYBRID (21 .apex files + 7 leftover dirs, system.img mtime old 13:18). PLAN (before doing): run
+`make installclean` (clears staged PRODUCT_OUT incl /system/apex, keeps soong intermediates) then
+`mka systemimage`; verify /system/apex = flattened DIRS only (no .apex). Then shrink-to-fit + deploy.
