@@ -762,3 +762,13 @@ manifests) -> /apex should populate. PLAN (before doing): cp -> system_v13.img; 
 simg2img -> /dev/block/mapper/system; clear /metadata+pstore; reboot with CLEAN tree init.rc (no DUMPKLOG
 marker so it can boot fully; boringssl self-test should PASS once linker exists). boot 57e6 + vbmeta flags-3.
 If boots -> DONE. If crash-loops -> redeploy DUMPKLOG init.rc to capture init's flattened bind-mount step.
+
+---
+## 2026-05-31 ===== MILESTONE: build-13 REACHES LINEAGEOS BOOT ANIMATION =====
+build-13 (FLATTENED apex, vendor-matched) DEPLOYED -> the device shows the LineageOS boot animation — the
+furthest it has EVER gotten. Confirms the fix: flattened /system/apex dirs (with apex_manifest.pb) let init
+bind-mount /apex -> /apex/com.android.runtime/bin/linker present -> services LINK (no more 127) -> zygote /
+surfaceflinger / system_server running -> boot animation. ROOT CAUSE was the apex-mode mismatch (stock vendor
+ro.apex.updatable=false mandates flattened; build-12 updatable .apex files broke it). First boot may take a
+while (dexopt/system_server). Boot=57e6, vbmeta flags-3, SELinux enforcing (kernel-locked), boringssl passed.
+Deployed: system_v13.img (md5 7a2b3b7ec69a0227d4f00d21c56e3eba, flattened, instrumented enforcing init).
