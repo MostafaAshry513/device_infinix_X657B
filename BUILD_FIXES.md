@@ -677,3 +677,16 @@ Full writeup: FINDINGS_apex_selinux.md (GitHub + Mega).
 - OPEN: why apexd denied under enforcing on this build (likely LOS-system + STOCK-vendor sepolicy mismatch);
   capture real AVC denials next session. SECONDARY: bake boringssl reboot_on_failure removal into SOURCE.
 - STATUS: user asleep; no further device actions. glm-5.1 researching -> flash_build9/glm_research.txt.
+
+---
+## 2026-05-31 ===== DECISIVE: KERNEL IS ENFORCE-LOCKED (CONFIG_SECURITY_SELINUX_DEVELOP not set) =====
+Boot kernel (working_ref/boot.emmc.win) has DEVELOP/BOOTPARAM/DISABLE all NOT set -> SELinux is ALWAYS
+ENFORCING; security_setenforce(0) is a no-op/denied. EVERY permissive-force this project tried was silently
+ineffective -> we were always enforcing -> apexd mounts DENIED -> /apex empty -> all services 127.
+Forcing IsEnforcing()->false made init's setenforce(0) FAIL -> init aborted in SelinuxInitialize -> kernel
+panic "Attempted to kill init". Reverting that.
+PATHS FORWARD: (A proper) fix the ENFORCING policy (GSIs boot enforcing here, so a correct policy works; ours
+is broken from LOS-system + STOCK-vendor mismatch) -> capture AVC denials from ramoops, add allow rules /
+use matched noophyy vendor. (B hack) ship a fully-permissive policy (magiskpolicy "permissive *" / typepermissive
+all domains in CILs; works on locked kernels). NEXT: revert to enforcing instrumented init, boot to service
+phase, capture avc denials. Full writeup FINDINGS_apex_selinux.md.
