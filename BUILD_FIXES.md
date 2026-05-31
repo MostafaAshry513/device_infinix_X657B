@@ -511,5 +511,29 @@ Test: `fastboot reboot` then poll ADB
 ### BUILD-11 ARTIFACTS
 - `/tmp/sys_patch.raw` (server): MD5 0b6d751914bf526ff12ed71c1e34ffc7, 924MB — linker fix + boringssl fix
 - `/tmp/sys_patch.raw` (MacBook): MD5 e477b26900c854d5fb5d899538620e9f — boringssl fix ONLY (old, already flashed)
-- Mega: `/X657B-build/roms/build-11/sys_patch.raw` (to be uploaded)
-- GitHub: `BUILD_FIXES.md` update (this entry)
+- Mega: `/X657B-build/roms/build-11/sys_patch.raw` ✅ uploaded
+- Mega: `/X657B-build/roms/build-11/debug_artifacts.tar.gz` (5.2MB) — 15 ramoops logs, 9 init variants, wrapinit_deep.log, team notes
+- Mega: `/X657B-build/roms/build-10/super_v6.img` (1.5G) — full super with core_64_bit fix
+- Mega: `/X657B-build/roms/build-10/system.img` (720M) — build-10 source system
+- Mega: `/X657B-build/session_log.md` ✅ updated — full session state
+- GitHub: `BUILD_FIXES.md` ✅ synced (commit `0f96643`)
+
+### ALL MEGA ARTIFACTS (2026-05-31)
+```
+/X657B-build/
+├── session_log.md              ← updated with full build-1 through build-11 timeline
+├── BUILDS.md
+├── roms/
+│   ├── build-4/
+│   ├── build-7-source/
+│   ├── build-8-proven-tree/
+│   ├── build-9-los-boot/
+│   ├── build-10/
+│   │   ├── super_v6.img        (1.5G) — build-10 full super
+│   │   └── system.img          (720M) — build-10 source system
+│   └── build-11/
+│       ├── sys_patch.raw       (924M) — MD5 0b6d7519, linker+boringssl fixes
+│       └── debug_artifacts.tar.gz (5.2M) — ramoops, init variants, wrapinit log
+├── archive/
+└── backups/
+```
