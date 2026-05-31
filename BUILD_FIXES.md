@@ -336,3 +336,11 @@ boringssl_self_test32_vendor -> SVC died -> shutdown_done (vendor boringssl stil
 So it's whack-a-mole on reboot_on_failure boringssl services. FIX: strip reboot_on_failure from ALL init
 rc (system + vendor), incl /vendor/etc/init/boringssl_self_test.rc. (init_perm carries all our breadcrumbs
 + security_setenforce(0); boot/vbmeta 57e6+flags3; super=super_v5 on phone.)
+
+---
+## 2026-05-31 removed reboot_on_failure from system bpfloader.rc + apexd.rc (vendor had none)
+Team grep: reboot_on_failure was in /system/etc/init/bpfloader.rc and apexd.rc (apexd-bootstrap:
+reboot,bootloader,bootstrap-apexd-failed). Vendor rc = 0. Removed all 3 lines. So the shutdown_done that
+appeared right after boringssl_self_test32_vendor was likely apexd/bpfloader failing (reboot_on_failure),
+not the vendor boringssl per se. Rebooted to test. NOTE: if apexd-bootstrap is genuinely failing, boot
+continues now but APEXes may be unmounted -> later breakage; watch next breadcrumbs.
