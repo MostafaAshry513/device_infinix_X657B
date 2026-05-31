@@ -562,3 +562,25 @@ Watching: boot_completed=1 => SUCCESS; back to recovery => read fresh wrapinit. 
 ### PROPER FIX (team build-12, in progress)
 Bake ro.apex.updatable=false for this flattened-apex device (drop updatable_apex.mk's prop, or force
 PRODUCT_PROPERTY_OVERRIDES ro.apex.updatable=false), rebuild systemimage.
+
+---
+## 2026-05-31 PIVOTAL: real-linker diagnostic localizes root cause to APEX LIB NAMESPACE (not symlink)
+### TEST (on-phone, no rebuild)
+1. Flipped ro.apex.updatable true->false, rebooted -> STILL all services status=127. So that prop is NOT the lever.
+2. Replaced /system/bin/linker symlink with the REAL linker binary (copied from
+   /system/apex/com.android.runtime/bin/linker), rebooted.
+### RESULT (decisive)
+Failure mode CHANGED: 127 -> status=1 (and some status=11 SIGSEGV) for EVERY service
+(logd, servicemanager, hwservicemanager, zygote, surfaceflinger, installd, ...).
+- 127 = linker not found  ->  status=1 = linker RAN but cannot link the shared libs.
+### MEANING
+The linker symlink resolution was a real (secondary) issue, but the PRIMARY blocker is that /apex is
+never populated -> apex libs (/apex/*/lib) + linkerconfig namespace are missing -> linker loads but every
+service fails to resolve its libraries. apexd-bootstrap exits 0 yet bind-mounts NOTHING into /apex.
+The build-11 "real linker" band-aid therefore CANNOT boot (proven, not guessed).
+### PROPER FIX (team, build-12) — pick the robust path:
+(A) Drop the OVERRIDE_TARGET_FLATTEN_APEX hack entirely -> build STANDARD updatable apex (real .apex files
+    loop-mounted by apexd; the proven LineageOS 18.1 path). OR
+(B) Fix flattened-apex activation: ensure /apex tmpfs + apexd bind-mounts propagate into the service mount
+    namespace + no selinux block. (flattened apex is deprecated/finicky -> prefer A.)
+bootwatch.sh now auto-recovers phone fastboot->TWRP on bootloop.
