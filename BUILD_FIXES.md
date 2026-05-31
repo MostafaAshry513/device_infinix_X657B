@@ -316,3 +316,13 @@ the on-device self-test failure is ENVIRONMENTAL = SELinux ENFORCING (MTK LK dro
 permissive never applies) -> test denied (e.g. writing its flag) -> exits nonzero -> was rebooting.
 reboot_on_failure already removed on-phone. REAL FIX: force permissive in init (selinux.cpp, after
 SelinuxInitialize -> security_setenforce(0)) and/or permissive policy. Wrote AGENT_HANDOFF.md (resume brief).
+
+---
+## 2026-05-31 FIX deployed — force SELinux permissive in init (init_perm) + reboot_on_failure removed
+Team edited system/core/init/selinux.cpp: added `security_setenforce(0);` at end of SelinuxInitialize()
+(MTK LK drops boot.img cmdline so androidboot.selinux=permissive can't apply; on-device services failed
+under enforcing). Built init_perm (32-bit ARM, security_setenforce present). Deployed via adb into the
+on-phone super_v5 (/system/bin/init = init_perm; init.rc already has reboot_on_failure removed; boot 57e6 +
+flags-3 vbmeta untouched). Cleared /metadata+pstore, rebooted. EXPECT: boringssl + other enforcing-denied
+services now pass -> boot should progress well past boringssl (to UI or to the next REAL failure).
+Watching boot result.
