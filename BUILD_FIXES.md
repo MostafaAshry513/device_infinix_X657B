@@ -357,3 +357,17 @@ SERVER TEST (qemu): servicemanager LINKS fine (only fails on missing /dev/binder
 => NOT a lib/link issue; it's a RUNTIME crash. NEXT: instrument Service::Reap to log exit status/signal in
 the "SVC died" breadcrumb -> first service with SIGSEGV/SIGABRT = the true root. Suspects: VINTF mismatch
 (our system vs stock vendor) cascading via hwservicemanager; Magisk interference; 64/32 (core_64_bit) config.
+
+---
+## 2026-05-31 ROOT of crash-loop FOUND — every service exits 127 (apex linker missing)
+init_s5 death-reason breadcrumbs: EVERY service dies code=1 status=127 (logd, servicemanager, vold, zygote,
+keymaster, ALL of them). code=1=CLD_EXITED, status=127 => the service process exits 127 = dynamic loader
+cannot exec/link it. Services use interp /system/bin/linker -> /apex/com.android.runtime/bin/linker (the
+APEX linker). apexd-bootstrap exited code=1 status=0 (SUCCESS) yet /apex/com.android.runtime is NOT usable.
+/system/apex is INCONSISTENT: contains BOTH flattened apex DIRS (com.android.runtime, com.android.art.release,
+com.android.adbd, conscrypt, media, media.swcodec) AND .apex FILES for the same names. So the runtime apex
+isn't activated -> apex linker missing -> all services exit 127 -> crash-loop -> fastboot.
+ROOT = apex flattening/build-config inconsistency (likely tied to core_64_bit-vs-arm / mixed flatten config).
+FIX directions: (a) build consistently (TARGET_FLATTEN_APEX or proper updatable apex) + rebuild; (b) ensure
+apexd activates com.android.runtime; (c) workaround: point /system/bin/linker at /system/bin/bootstrap/linker.
+Handed to the team to fix. init itself runs (bootstrap linker); only services (apex linker) fail.
