@@ -722,3 +722,27 @@ PHONE NOW: in TWRP. /system has init_enforcing_v14 + an init.rc with the BAD blo
 NEXT: finish init klog-dump build, deploy init + fixed init.rc, boot, read /metadata/klog_apexd.txt for the
 apexd "avc: denied ..." -> add allow rule(s) to device sepolicy (or switch to matched noophyy vendor) ->
 rebuild -> enforcing boot. Fallback: fully-permissive in-policy (typepermissive all domains / magiskpolicy).
+
+---
+## 2026-05-31 (session 2) ===== TRUE ROOT CAUSE CONFIRMED: apex-mode mismatch w/ stock vendor =====
+CAPTURED via new non-blocking klog dump (init klogctl READ_ALL -> /metadata/klog_apexd.txt). The log shows:
+  apexd: "This device does not support updatable APEX. Exiting"
+  init:  "/system/apex/com.android.runtime is not an APEX directory: Failed to read manifest file ..."
+ro.apex.updatable: VENDOR build.prop line 420 = FALSE ; SYSTEM build.prop line 194 = TRUE. ro.* props are
+FIRST-SET-WINS and the stock vendor's FALSE wins -> apexd runs in FLATTENED mode and EXITS (expects init to
+bind-mount flattened apex DIRECTORIES). But build-12 shipped UPDATABLE .apex FILES -> init's flattened scan
+fails -> /apex never populated -> /apex/com.android.runtime/bin/linker missing -> every service 127.
+=> The stock Infinix VENDOR MANDATES FLATTENED APEX. build-12 (updatable) was the wrong call. The original
+tree's OVERRIDE_TARGET_FLATTEN_APEX=true was CORRECT for this vendor. (Only avc denials in the log are
+trivial: tranfs relabelto, our wrapinit.log append by vendor_init — NOT apexd.)
+
+PLAN (logged BEFORE doing, per user request) — build-13 flattened, vendor-matched:
+ 1. Re-add `OVERRIDE_TARGET_FLATTEN_APEX := true` to device/infinix/X657B/BoardConfig.mk (revert build-12
+    removal; keep core_64_bit.mk removed so no hybrid).
+ 2. mka systemimage (flattened rebuild).
+ 3. Verify /system/apex = flattened DIRS + apex_manifest.pb (NOT .apex files).
+ 4. Shrink-to-fit (resize2fs) + deploy system to phone (replace system partition; boot 57e6 + vbmeta flags-3).
+ 5. Boot: if boots -> DONE. If crash-loops -> deploy DUMPKLOG init.rc to capture init's flattened bind-mount
+    step (this is where build-10, also flattened, mysteriously failed before we had the klog tool).
+Note: deployed init has the klog-capture code (harmless without the marker). The build's init.rc restores
+boringssl reboot_on_failure, but if /apex works boringssl self-test PASSES (no loop).
