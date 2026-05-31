@@ -283,3 +283,13 @@ actions/starts services, the system HANGS, watchdog resets ~ -> bootloop. This i
 ~25s-watchdog symptom from the start of the project. NEXT: instrument init to log each service start +
 action to /metadata (fsync) so the LAST before reset = the hanging service/HAL. (No pmsg/last-logcat
 available; /metadata fsync breadcrumbs are the only durable channel under watchdog.)
+
+---
+## 2026-05-31 hang LOCALIZED — right after boringssl_self_test32, in a builtin ACTION
+init_s3 (service-start instrumentation) /metadata/wrapinit.log shows:
+  entering main loop -> SVC linkerconfig(bootstrap) start/die -> ueventd start(stays up) ->
+  apexd-bootstrap start/die -> boringssl_self_test32 start/DIE -> [NOTHING MORE] -> watchdog reset.
+So init completes the early services then HANGS before the next service starts => stuck in a BUILTIN
+ACTION (no service breadcrumb), not a service. Prime suspects (MTK-classic): mount_all (/data, vold/f2fs)
+or wait_for_coldboot_done (ueventd coldboot/firmware). NEXT: instrument init action execution
+(ActionManager::ExecuteOneCommand / builtins) to log each action name -> last before hang = culprit.
