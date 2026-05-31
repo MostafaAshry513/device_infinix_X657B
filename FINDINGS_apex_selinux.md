@@ -69,3 +69,41 @@ Phone in TWRP. adb/fastboot via Mac reverse tunnel (server:2222 -> Mac:22, user 
 /root/android/flash_build9/system_v12_fit.img (708MB sparse, fits the 924MiB system logical partition,
 md5 1ec0834cb6b5f754825df906d573a8fe) — already ON the phone with the instrumented init.rc.
 boot=working_ref/boot.emmc.win (57e6), vbmeta flags-3. glm-5.1 research -> /root/android/flash_build9/glm_research.txt.
+
+---
+# UPDATE 2026-05-31 (later): THE KERNEL IS ENFORCE-LOCKED — runtime permissive is IMPOSSIBLE
+## Decisive evidence (extract-ikconfig on working_ref/boot.emmc.win = the Android boot kernel)
+```
+CONFIG_SECURITY_SELINUX=y
+# CONFIG_SECURITY_SELINUX_BOOTPARAM is not set    -> no enforcing=0 / androidboot.selinux cmdline override
+# CONFIG_SECURITY_SELINUX_DISABLE is not set       -> cannot disable selinux at runtime
+# CONFIG_SECURITY_SELINUX_DEVELOP is not set        -> ENFORCE-LOCKED: always enforcing once policy loaded
+CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE=0
+```
+## What this means
+- With DEVELOP=n, the kernel ignores/denies security_setenforce(0). SELinux is ALWAYS enforcing after the
+  policy loads. Every "force permissive" attempt this project made (security_setenforce(0) in init) was a
+  silent no-op -> we were ALWAYS enforcing. That is the deepest root cause of the apexd-denied / 127 chain.
+- Proof from the failed test: setting IsEnforcing()->false made init call security_setenforce(0) at
+  selinux.cpp:480; on this kernel that fails -> init aborts in SelinuxInitialize -> "Attempted to kill init!"
+  kernel panic (wrapinit stops at "before SelinuxInitialize"; ramoops committed a fresh panic).
+- The old (enforcing) init "worked better" only because its setenforce(0) was at line 492 with the return
+  value UNCHECKED, so the failure was swallowed and init limped on to second stage (then 127 at services).
+## CONCLUSION: cannot boot permissive on this device without a kernel change. Two real paths:
+### PATH A (proper, what GSIs do): make the ENFORCING policy CORRECT
+GSIs boot enforcing on this same locked kernel -> a correct policy works. Ours is broken because LOS SYSTEM
+runs on STOCK Infinix VENDOR (sepolicy/mapping mismatch) so apexd's loop/bind/dm mounts get DENIED.
+- Next: capture the actual AVC denials. Boot with the ENFORCING (old) instrumented init so it reaches the
+  service phase; the locked kernel logs "avc: denied ..." to the kernel audit ring -> read from
+  /sys/fs/pstore/console-ramoops-0 (on the panic) or /dev/kmsg. Feed denials -> add allow rules to device
+  sepolicy (or use the MATCHED vendor (noophyy) instead of stock) -> rebuild -> repeat until /apex mounts.
+### PATH B (fast hack): ship a FULLY-PERMISSIVE POLICY (works even on enforce-locked kernels)
+A policy can mark every domain as a "permissive domain"; the kernel still "enforces" but permissive domains
+only log AVCs. Achieve by patching the loaded/binary policy with magiskpolicy ("permissive *") or by adding
+typepermissive for all domains in the CILs. Complication: this device uses SPLIT policy compiled on-device
+by init from CILs (plat_sepolicy.cil + mapping + vendor) -> need to patch the CILs or the precompiled_sepolicy
+that init loads. Magisk IS present in the boot ramdisk (/debug_ramdisk) -> magiskpolicy is available.
+## IMMEDIATE next action
+Revert the permissive init (it panics). Rebuild the ENFORCING instrumented init, redeploy, boot to the
+service phase, and CAPTURE AVC DENIALS from ramoops -> that tells us exactly what to allow (Path A) and
+whether stock-vendor mismatch is the culprit.
