@@ -270,3 +270,16 @@ LoadBootScripts/before-epoll). Hypothesis: if last breadcrumb == "InitializeSubc
 `init subcontext` child is failing (CANNOT LINK in the VENDOR linker namespace) -> explains the missing
 "ENTER main argv1=subcontext" breadcrumb and the clean 127. Then: compare LOS vs GSI /system|/vendor
 ld.config*.txt and/or instrument subcontext.cpp. init_s2 deployed to phone; awaiting /metadata/wrapinit.log.
+
+---
+## 2026-05-31 MILESTONE — past exit-127! init reaches main loop; now post-init HANG (watchdog)
+init_s2 (SecondStageMain instrumented) /metadata/wrapinit.log shows EVERY milestone passes:
+PropertyInit -> SelinuxRestoreContext -> StartPropertyService -> SetupMountNamespaces ->
+InitializeSubcontext -> LoadBootScripts -> "entering main loop" (repeats each bootloop cycle).
+=> exit-127 is GONE (it was tied to the broken boot recipe; working recipe = stock boot 57e6 +
+flags-3 vbmeta fixed it). ramoops stays STALE (108f7daa, no new panic) and NO pmsg => the resets are
+HW WATCHDOG (don't commit ramoops), not panics. So now: init enters the main loop, processes
+actions/starts services, the system HANGS, watchdog resets ~ -> bootloop. This is the ORIGINAL
+~25s-watchdog symptom from the start of the project. NEXT: instrument init to log each service start +
+action to /metadata (fsync) so the LAST before reset = the hanging service/HAL. (No pmsg/last-logcat
+available; /metadata fsync breadcrumbs are the only durable channel under watchdog.)
