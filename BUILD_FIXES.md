@@ -783,3 +783,11 @@ good). fs_mgr "formattable" did NOT auto-reformat. FIX (logged before doing): re
 userdata partition (/dev/block/by-name/userdata = mmcblk0p39) to match fstab, reboot -> /data mounts f2fs ->
 zygote -> system_server -> boot_completed. Services running already: surfaceflinger, servicemanager, vold,
 hwcomposer(59fps), audio HAL. SELinux enforcing throughout (kernel-locked) — fine.
+
+## 2026-05-31 build-13 /data: make_f2fs blocked by TWRP O_EXCL -> dd-wipe so fs_mgr formats f2fs on boot
+make_f2fs/mkfs.f2fs in TWRP returns "Failed to open the device!" (O_EXCL; TWRP holds an fd on userdata
+mmcblk0p39; no fuser/dmsetup to clear). Raw dd works. PLAN (before doing): dd zero first 16MB of
+/dev/block/mmcblk0p39 to remove the ext4 superblock -> partition blank -> reboot to system -> fs_mgr
+"formattable" flag formats /data as f2fs (matches vendor fstab) -> /data mounts (NON-encrypted: fstab has no
+fileencryption/forceencrypt) -> zygote/system_server -> boot_completed. Verify via logcat (adb works on boot).
+Fallback if fs_mgr doesn't auto-format: user does TWRP GUI Wipe>Advanced>Data>Change File System>F2FS.
