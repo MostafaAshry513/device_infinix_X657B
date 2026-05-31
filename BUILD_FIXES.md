@@ -293,3 +293,16 @@ So init completes the early services then HANGS before the next service starts =
 ACTION (no service breadcrumb), not a service. Prime suspects (MTK-classic): mount_all (/data, vold/f2fs)
 or wait_for_coldboot_done (ueventd coldboot/firmware). NEXT: instrument init action execution
 (ActionManager::ExecuteOneCommand / builtins) to log each action name -> last before hang = culprit.
+
+---
+## 2026-05-31 ROOT CAUSE of bootloop CONFIRMED — boringssl_self_test reboot_on_failure
+init_s4 (action breadcrumbs) /metadata/wrapinit.log: ... exec_start boringssl_self_test32 ->
+SVC start/DIE boringssl_self_test32 -> ACT <Builtin>:0 shutdown_done. So init does a CLEAN REBOOT
+(not hang/watchdog -> explains stale ramoops + no pmsg). /system/etc/init/hw/init.rc:94-102 defines
+boringssl_self_test32 AND _test64 each with `reboot_on_failure reboot,boringssl-self-check-failed`.
+The crypto self-test exits non-zero -> init reboots -> BOOTLOOP. Also _test64 binary is MISSING (our
+build is 32-bit TARGET_ARCH=arm but init.rc has the 64-bit service -> the core_64_bit-vs-arm config
+conflict). QUICK FIX (on-phone, no rebuild): remove the `reboot_on_failure ...` line from both
+boringssl_self_test32/64 in init.rc -> boot continues past. PROPER FIX later: resolve 64/32 arch config
+(drop core_64_bit inherit or build true 64-bit). chroot run of the binary gives 127 = apex-linker missing
+in chroot (artifact), not the real cause.
