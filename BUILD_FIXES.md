@@ -690,3 +690,35 @@ is broken from LOS-system + STOCK-vendor mismatch) -> capture AVC denials from r
 use matched noophyy vendor. (B hack) ship a fully-permissive policy (magiskpolicy "permissive *" / typepermissive
 all domains in CILs; works on locked kernels). NEXT: revert to enforcing instrumented init, boot to service
 phase, capture avc denials. Full writeup FINDINGS_apex_selinux.md.
+
+---
+## 2026-05-31 (session 2) — capturing the apexd AVC denial (enforce-locked kernel) — IN PROGRESS
+STATE OF PLAY:
+- Kernel is ENFORCE-LOCKED (CONFIG_SECURITY_SELINUX_DEVELOP/BOOTPARAM/DISABLE all unset). Confirmed AGAIN:
+  forcing permissive in init -> init aborts in SelinuxInitialize -> "Attempted to kill init" panic. So we
+  MUST make the loaded policy work (or be permissive in-policy). Reverted selinux.cpp to enforcing.
+- sepolicy sha MISMATCH confirmed on device: system plat_sepolicy sha (be5fd78a...) != vendor recorded
+  (05bf9d9f...). => init does NOT use vendor precompiled_sepolicy; it COMPILES the policy on-device from LOS
+  plat + STOCK vendor CILs (the same path GSIs use; GSIs boot enforcing here, so a correct policy works).
+- With the rebuilt ENFORCING instrumented init (init_enforcing_v14, md5 6503117d, deployed): init reaches
+  the SERVICE phase (wrapinit ~1925 lines) and EVERY service exits 127 (logd, servicemanager, keymaster,
+  zygote, vendor HALs...). apexd-bootstrap exits code=1 status=0 but /apex is never populated -> 127.
+  enforce dump = 1 (enforcing).
+DIAGNOSTIC DIFFICULTY (no userspace logging since services 127):
+- ramoops console-ramoops-0 only retains the LAST crash-loop iteration; the apexd iteration gets overwritten
+  by later iterations. Also an intermittent FIRST-STAGE panic recurs: first-stage init sometimes can't mount
+  /metadata (md_udc): "Filesystem on md_udc was not cleanly shutdown" + "Not running e2fsck (executable not in
+  system image)" -> mount(md_udc,/metadata,ext4)=-1 -> panic exitcode=0x00007f00. (md_udc goes dirty from the
+  repeated hard reboots and the ramdisk has no e2fsck to clean it. Intermittent; some boots mount fine.)
+- Tried init.rc `copy /proc/kmsg /metadata/kmsg_at_apexd.txt` to capture the kernel log at the apexd point:
+  MISTAKE — /proc/kmsg is a blocking stream, so init HUNG at the logo there (no file written). (That hang
+  did at least pause the loop at the apexd phase.)
+RELIABLE FIX IN PROGRESS: add a non-blocking kernel-ring dump to init via klogctl(SYSLOG_ACTION_READ_ALL)
+-> write /metadata/klog_apexd.txt, triggered right after apexd-bootstrap (via a unique init.rc marker
+"write /dev/kmsg DUMPKLOG_NOW" detected in action.cpp), then `setprop sys.powerctl reboot,recovery` for a
+clean reboot to TWRP. Editing system/core/init/main.cpp (add wrapinit_dump_klog) + action.cpp (trigger).
+PHONE NOW: in TWRP. /system has init_enforcing_v14 + an init.rc with the BAD blocking `copy /proc/kmsg` line
+(needs replacing with the marker). boot=57e6, vbmeta flags-3. system_v12_fit.img is the deployed system.
+NEXT: finish init klog-dump build, deploy init + fixed init.rc, boot, read /metadata/klog_apexd.txt for the
+apexd "avc: denied ..." -> add allow rule(s) to device sepolicy (or switch to matched noophyy vendor) ->
+rebuild -> enforcing boot. Fallback: fully-permissive in-policy (typepermissive all domains / magiskpolicy).
