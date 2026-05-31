@@ -604,3 +604,41 @@ bootwatch.sh now auto-recovers phone fastboot->TWRP on bootloop.
 - Team building build-12 (mka systemimage) -> system_v12.img. Will verify /system/apex has *.apex files.
 ### Next: deploy system_v12 to phone (adb dd to /dev/block/by-name/system), keep boot 57e6 + vbmeta flags-3,
   reboot, read wrapinit.log -> expect apexd to loop-mount /apex/com.android.runtime -> services link -> boot.
+
+---
+## 2026-05-31 ===== CONSOLIDATED DISCOVERY SUMMARY (session) =====
+THE BUG (root cause of the universal service crash-loop -> fastboot):
+  /apex is NEVER populated at runtime -> /apex/com.android.runtime/bin/linker + all apex libs missing
+  -> every dynamically-linked service/exec fails. apexd-bootstrap exits 0 but activates NOTHING.
+
+HOW WE PROVED IT (on-phone, build-10 system, adb-over-Mac-tunnel; NO rebuilds needed):
+  1. /system/apex = 20 flattened DIRS + 1 shim (clean since build-10); contents OK
+     (com.android.runtime/lib has bionic libc/libdl/libm, ld-android, libc++, apex_manifest.pb).
+  2. wrapinit.log: `apexd-bootstrap ... code=1 status=0` (exits success) yet every later binary 127.
+  3. Test A: flip ro.apex.updatable true->false, reboot -> STILL all 127. (prop alone is NOT the fix)
+  4. Test B: replace /system/bin/linker symlink with REAL linker binary, reboot
+     -> failure mode CHANGED 127 -> status=1 (+some SIGSEGV/11). Linker now RUNS but cannot link libs.
+     => root cause localized to APEX LIB NAMESPACE (/apex empty), not the symlink. Band-aid can't boot.
+  5. init.rc has NO `mount tmpfs tmpfs /apex` line (relies on C++ init/apexd to create+propagate /apex).
+
+WHY FLATTENED WAS A DEAD END (and the buried mistake):
+  BoardConfig.mk forced OVERRIDE_TARGET_FLATTEN_APEX=true with comment "stock kernel lacks loop-device
+  support for updatable apex." THAT IS FALSE. extract-ikconfig on working_ref/boot.emmc.win (the Android
+  boot kernel) shows: CONFIG_BLK_DEV_LOOP=y, LOOP_MIN_COUNT=16, BLK_DEV_DM=y, DM_VERITY=y, DM_VERITY_AVB=y.
+  Phone shows /dev/block/loop0..15. So updatable apex IS supported. Forcing flatten created an inconsistent
+  config (flattened dirs + ro.apex.updatable=true) that apexd could never activate; flattened failed the
+  SAME way as updatable -> the loop-device theory mis-sent prior work into the flatten dead-end.
+
+THE FIX (build-12, compiling now):
+  Removed `OVERRIDE_TARGET_FLATTEN_APEX := true` from device/infinix/X657B/BoardConfig.mk -> standard
+  UPDATABLE apex (real .apex files, apexd loop-mounts + per-apex dm-verity; the proven LOS 18.1 default,
+  consistent with ro.apex.updatable=true). Building system_v12.img via `mka systemimage`.
+
+DEPLOY PLAN: adb dd system_v12 -> /dev/block/by-name/system; keep boot 57e6 + vbmeta flags-3; clear
+  /metadata + pstore; reboot; read wrapinit.log. Expect apexd to loop-mount /apex/com.android.runtime
+  -> services link -> boot proceeds. bootwatch auto-recovers fastboot->TWRP on bootloop.
+
+INFRA NOTES: adb/fastboot reach the phone via the Mac over reverse tunnel (server:2222 -> Mac:22, user
+  brucewayne, /usr/local/bin/adb|fastboot). Server wrappers: ~/bin/padb, ~/bin/bootwatch.
+  Headless qwen team flaked once (13 min, zero output) -> for critical surgical edits do them directly;
+  delegate the heavy compile to the team.
