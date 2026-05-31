@@ -772,3 +772,14 @@ surfaceflinger / system_server running -> boot animation. ROOT CAUSE was the ape
 ro.apex.updatable=false mandates flattened; build-12 updatable .apex files broke it). First boot may take a
 while (dexopt/system_server). Boot=57e6, vbmeta flags-3, SELinux enforcing (kernel-locked), boringssl passed.
 Deployed: system_v13.img (md5 7a2b3b7ec69a0227d4f00d21c56e3eba, flattened, instrumented enforcing init).
+
+---
+## 2026-05-31 build-13 BOOTS — last blocker = /data fs-type mismatch (NOT apex anymore)
+With full adb+logcat on the booted system: apex/127 wall GONE. Remaining: /data NOT mounted -> zygote never
+starts (its start trigger waits on /data) -> stuck at boot animation; credstore/tombstoned crash-loop because
+/data/* missing (collateral). CAUSE: vendor fstab /data = **f2fs** (formattable) but userdata partition is
+currently **ext4** (blkid TYPE=ext4, from a prior TWRP format). No encryption flags on /data (vendor enc-off,
+good). fs_mgr "formattable" did NOT auto-reformat. FIX (logged before doing): reboot to TWRP, mkfs.f2fs the
+userdata partition (/dev/block/by-name/userdata = mmcblk0p39) to match fstab, reboot -> /data mounts f2fs ->
+zygote -> system_server -> boot_completed. Services running already: surfaceflinger, servicemanager, vold,
+hwcomposer(59fps), audio HAL. SELinux enforcing throughout (kernel-locked) — fine.
