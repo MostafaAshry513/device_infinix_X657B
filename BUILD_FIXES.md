@@ -437,3 +437,79 @@ zygote: CANNOT LINK "libnativeloader.so" — same chroot artifact.
   super_v6.img (1.5G, /root/android/flash_build9/super_v6.img).
 - NEXT: user must check phone screen — if boot animation showing = SUCCESS (wait for adb),
   if logo→reboot→recovery = need ramoops/wrapinit.log diagnosis.
+
+---
+## build-11: linker fix for ALL services exiting 127 + boringssl reboot_on_failure removal  [NOT YET FLASHED]
+### CONTEXT
+build-10 (core_64_bit fix, clean APEX layout) booted DEEP past all prior blockers: init reaches
+all triggers (fs, post-fs, post-fs-data, zygote-start, early-boot, boot), executes 1295+ actions,
+starts ALL services. But EVERY dynamically linked service crashes `code=1 status=127`:
+`logd`, `servicemanager`, `zygote`, `surfaceflinger`, `vold`, ALL HALs, etc.
+Status 127 = dynamic linker cannot exec.
+
+### ROOT CAUSE — /system/bin/linker symlink chain fails during early boot
+`/system/bin/linker` → `/apex/com.android.runtime/bin/linker` → `/system/apex/com.android.runtime/bin/linker`
+This double-symlink traversal through the APEX namespace fails during early boot (apexd-bootstrap hasn't
+fully activated the APEX linker namespace yet). The static first-stage init works fine, but ALL
+second-stage dynamically linked services fail.
+
+### BUILD-11 FIXES (3 separate fixes, cumulative)
+
+#### Fix 1: Formatted md_udc (mmcblk0p7) as ext4
+- Problem: First-stage init failed to mount /metadata → `mount(/dev/block/.../md_udc,/metadata,ext4)=-1: No such file or directory`
+- Root cause: md_udc partition (mmcblk0p7) was blank/corrupted. Previously we formatted metadata (mmcblk0p6) — DIFFERENT partition.
+- Fix: `mke2fs -t ext4 /dev/block/by-name/md_udc` on phone
+- Result: First-stage init mounts /metadata successfully, first-stage completes cleanly
+
+#### Fix 2: Commented out `reboot_on_failure` from boringssl_self_test services in init.rc
+- Problem: `boringssl_self_test32` exits non-zero → `reboot_on_failure` triggers → `shutdown_done` → reboot → bootloop
+- Fix: Commented out `reboot_on_failure` from all 4 boringssl services in `/system/etc/init/hw/init.rc`:
+  - boringssl_self_test32 (line 96)
+  - boringssl_self_test64 (line 101)
+  - boringssl_self_test_apex32 (line 106)
+  - boringssl_self_test_apex64 (line 111)
+- Note: bpfloader.rc and apexd.rc `reboot_on_failure` were already removed on-phone in prior iteration
+- Status: DEPLOYED AND VERIFIED — boot continues past boringssl, reaches all services
+
+#### Fix 3: Replaced /system/bin/linker symlink with real binary
+- Problem: `/system/bin/linker` is a symlink → `/apex/com.android.runtime/bin/linker` which
+  is itself a symlink → `/system/apex/com.android.runtime/bin/linker`. This chain fails
+  during early boot before apexd fully activates the APEX linker namespace.
+- Fix: Replaced the symlink with the REAL linker binary copied from
+  `/system/apex/com.android.runtime/bin/linker` (ELF 32-bit ARM static-pie, 1,063,260 bytes)
+- BuildID: 985587a4d0a3f64144c86bc954bcecda
+- This should fix ALL services exiting 127 since every dynamically linked service uses this linker
+
+### sys_patch.raw — COMBINED PATCH IMAGE (server, NOT YET FLASHED)
+- **File:** `/tmp/sys_patch.raw` on server
+- **MD5:** `0b6d751914bf526ff12ed71c1e34ffc7`
+- **Size:** 924MB (raw ext2 filesystem, NOT sparse)
+- **Contents:** Full system partition with Fix 2 (boringssl reboot_on_failure removal) + Fix 3 (linker binary replacement)
+- **Based on:** build-10 system.img (core_64_bit fix, clean APEX: 21 dirs + 1 .apex file)
+- **Verified:** 
+  - `/system/bin/linker`: ELF 32-bit ARM static-pie, 1,063,260 bytes (real binary, NOT symlink)
+  - init.rc: All 4 boringssl `reboot_on_failure` lines commented out
+  - bpfloader.rc: `reboot_on_failure` active (not yet tripped in boot flow; on-phone fix from prior iteration)
+  - apexd.rc: `reboot_on_failure` active (same — not yet tripped)
+
+### PHONE CURRENT STATE (as of 2026-05-31)
+- Boot: stock boot md5 57e6f9def... (from /root/android/working_ref/boot.emmc.win)
+- Vbmeta: flags-3 (AVB disabled)
+- System: build-10 + on-phone boringssl reboot_on_failure removal (OLD sys_patch.raw md5 e477b269)
+  - Has boringssl fix but NOT linker fix
+  - Boot goes deep (1295 init actions) but ALL services exit 127
+- Recovery: TWRP accessible via ADB over SSH tunnel
+- md_udc (/metadata): Formatted ext4, working
+
+### NEXT STEP
+**Transfer sys_patch.raw (MD5 0b6d7519) from server to MacBook, then flash via fastbootd.**
+This single step deploys the linker fix that should resolve the 127 failures for ALL services.
+Transfer: `ssh -p 2222 brucewayne@localhost 'cat > /tmp/sys_patch.raw' < /tmp/sys_patch.raw` (924MB, ~5min over tunnel)
+Flash: `fastboot reboot fastboot` then `fastboot flash system /tmp/sys_patch.raw`
+Test: `fastboot reboot` then poll ADB
+
+### BUILD-11 ARTIFACTS
+- `/tmp/sys_patch.raw` (server): MD5 0b6d751914bf526ff12ed71c1e34ffc7, 924MB — linker fix + boringssl fix
+- `/tmp/sys_patch.raw` (MacBook): MD5 e477b26900c854d5fb5d899538620e9f — boringssl fix ONLY (old, already flashed)
+- Mega: `/X657B-build/roms/build-11/sys_patch.raw` (to be uploaded)
+- GitHub: `BUILD_FIXES.md` update (this entry)
