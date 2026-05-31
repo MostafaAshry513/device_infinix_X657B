@@ -642,3 +642,20 @@ INFRA NOTES: adb/fastboot reach the phone via the Mac over reverse tunnel (serve
   brucewayne, /usr/local/bin/adb|fastboot). Server wrappers: ~/bin/padb, ~/bin/bootwatch.
   Headless qwen team flaked once (13 min, zero output) -> for critical surgical edits do them directly;
   delegate the heavy compile to the team.
+
+---
+## 2026-05-31 build-12 BUILT + verified (updatable apex). Deploying via shrink-to-fit.
+### BUILD RESULT (mka systemimage, OVERRIDE_TARGET_FLATTEN_APEX removed)
+- out/.../system.img sparse 762M, raw 979M, md5 0c8c754826b90aaaf006e60be01c67da
+- /system/apex now = **21 real *.apex FILES** (com.android.runtime.apex, com.android.art.release.apex,
+  com.android.conscrypt.apex, com.android.i18n.apex, com.android.tzdata.apex, ...) — UPDATABLE, not flattened.
+- ro.apex.updatable=true (consistent now); /system/bin/apexd present; /system/bin/linker -> apex symlink.
+- (team agent died mid-verify on agentrouter QUOTA error: $0.055 left < $0.0592 needed — credits ~exhausted.
+   Build itself completed; orchestrator did verification.)
+### DEPLOY (no super rebuild needed; kind to limited internet)
+- system_v12 content only 712MB used inside 979MB fs; existing logical system partition = 968,802,304 B (924MiB).
+- e2fsck + resize2fs shrunk fs to 920MiB (964,689,920 B) -> FITS partition. img2simg -> system_v12_fit.img
+  (708MB sparse, md5 1ec0834cb6b5f754825df906d573a8fe), saved /root/android/flash_build9/system_v12_fit.img.
+- Path: scp server->Mac:/tmp (708MB over tunnel) -> adb push -> phone /sdcard -> simg2img to
+  /dev/block/mapper/system -> e2fsck -> clear /metadata+pstore -> reboot. boot 57e6 + vbmeta flags-3 unchanged.
+- EXPECT: apexd loop-mounts /apex/com.android.runtime (kernel has loop+dm-verity) -> services link -> boot.
