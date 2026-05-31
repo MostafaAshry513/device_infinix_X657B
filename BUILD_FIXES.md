@@ -326,3 +326,13 @@ on-phone super_v5 (/system/bin/init = init_perm; init.rc already has reboot_on_f
 flags-3 vbmeta untouched). Cleared /metadata+pstore, rebooted. EXPECT: boringssl + other enforcing-denied
 services now pass -> boot should progress well past boringssl (to UI or to the next REAL failure).
 Watching boot result.
+
+---
+## 2026-05-31 PROGRESS — permissive cleared system boringssl; now VENDOR boringssl reboots
+init_perm (permissive) /metadata/wrapinit.log: boot now passes system boringssl_self_test32 (no reboot,
+reboot_on_failure removed) AND runs ALL vendor init (init.modem.rc, init.mt6761.rc, init.project.rc,
+modprobe vendor .ko) -> then dies at /vendor/etc/init/boringssl_self_test.rc:3 exec_start
+boringssl_self_test32_vendor -> SVC died -> shutdown_done (vendor boringssl still has reboot_on_failure).
+So it's whack-a-mole on reboot_on_failure boringssl services. FIX: strip reboot_on_failure from ALL init
+rc (system + vendor), incl /vendor/etc/init/boringssl_self_test.rc. (init_perm carries all our breadcrumbs
++ security_setenforce(0); boot/vbmeta 57e6+flags3; super=super_v5 on phone.)
