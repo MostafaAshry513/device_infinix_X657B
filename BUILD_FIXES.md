@@ -584,3 +584,23 @@ The build-11 "real linker" band-aid therefore CANNOT boot (proven, not guessed).
 (B) Fix flattened-apex activation: ensure /apex tmpfs + apexd bind-mounts propagate into the service mount
     namespace + no selinux block. (flattened apex is deprecated/finicky -> prefer A.)
 bootwatch.sh now auto-recovers phone fastboot->TWRP on bootloop.
+
+---
+## 2026-05-31 DECISION: abandon flattened apex -> STANDARD UPDATABLE apex (build-12)
+### Why flattened was a dead end
+- /apex never populated in EITHER mode. Flattened: apexd-bootstrap exits 0 but bind-mounts nothing
+  (apex CONTENTS verified present on disk: com.android.runtime/lib has bionic libc/libdl/libm, ld-android,
+  libc++, apex_manifest.pb). Flipping ro.apex.updatable false made NO difference.
+- BoardConfig.mk had forced OVERRIDE_TARGET_FLATTEN_APEX=true with the justification "stock kernel lacks
+  loop-device support for updatable apex." **That justification is FALSE.**
+### Kernel proof (extract-ikconfig on working_ref/boot.emmc.win = the Android boot kernel)
+  CONFIG_BLK_DEV_LOOP=y ; CONFIG_BLK_DEV_LOOP_MIN_COUNT=16
+  CONFIG_BLK_DEV_DM=y ; CONFIG_DM_VERITY=y ; CONFIG_DM_VERITY_AVB=y ; CONFIG_DM_VERITY_FEC=y
+  (phone also shows /dev/block/loop0..15). So the kernel FULLY supports updatable apex (loop + dm-verity).
+### Fix applied
+- Removed `OVERRIDE_TARGET_FLATTEN_APEX := true` from device/infinix/X657B/BoardConfig.mk.
+  Now builds standard updatable apex (real .apex files, apexd loop-mounts + per-apex dm-verity).
+  This is the proven LineageOS 18.1 default path and is internally CONSISTENT with ro.apex.updatable=true.
+- Team building build-12 (mka systemimage) -> system_v12.img. Will verify /system/apex has *.apex files.
+### Next: deploy system_v12 to phone (adb dd to /dev/block/by-name/system), keep boot 57e6 + vbmeta flags-3,
+  reboot, read wrapinit.log -> expect apexd to loop-mount /apex/com.android.runtime -> services link -> boot.
