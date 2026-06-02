@@ -815,3 +815,27 @@ strip for a clean production build.
 REMAINING POLISH (not blockers): (a) rebuild init WITHOUT instrumentation; (b) assemble a permanent
 super_v13 (system_v13+vendor_fixed+product+system_ext) and/or a flashable zip so it survives a clean flash;
 (c) verify it persists a normal reboot; (d) functional pass (wifi/RIL/audio/sensors).
+
+---
+## 2026-06-02 build-14 STABLE (user) — sepolicy hardening to pass user-build checks
+SELINUX_IGNORE_NEVERALLOWS is banned in user builds, so the device sepolicy had to actually pass. Fixed,
+iteratively (mka selinux_policy now SEPOL_EXIT=0):
+- BoardConfig: SELINUX_IGNORE_NEVERALLOWS made conditional (eng/userdebug only).
+- rild.te: was redeclaring vendor type `rild` in PLAT-PRIVATE (duplicate in neverallow check; "unknown type"
+  when removed) -> deleted (rild is a vendor domain; stock prebuilt vendor sepolicy covers it).
+- proc_ged.te: `allow domain (gpu|graphics)_device` scoped to exclude isolated_app/app_zygote/webview_zygote/
+  crash_dump (+ appdomain/shell for graphics_device).
+- untrusted_app_all.te: removed app reads of proc:file, proc_tty_drivers, proc_net_tcp_udp, proc_version.
+- mtk_hal_mms.te: dropped app add_hwservice (apps may only find).
+- logpersist.te/shell.te(syslog_read): wrapped in userdebug_or_eng. toolbox.te: dropped dac_override.
+- init.te: dropped exec of unlabeled files. netd.te: dropped generic sysfs rw. mtk_hal_power.te: dropped
+  system_data_root_file write. priv_app.te: dropped mnt_vendor_file. nfc.te: dropped default_android_service
+  add (NO NFC HARDWARE on this device per user). mtk_hal_audio.te: removed bogus broadcastradio_client attr.
+- permissive domains (banned in user): kpoc_charger + recovery init/recovery wrapped in userdebug_or_eng.
+- LIGHT HAL: removed the redundant LOS /system android.hardware.light@2.0-service.X657B (device.mk + sepolicy
+  + file_contexts). The STOCK VENDOR lights HAL (android.hardware.lights-service.mediatek) already runs and
+  serves lights; the /system one couldn't satisfy user SELinux (system HAL must be coredomain, but coredomain
+  is forbidden from LED sysfs).
+NOTE: a few rules were removed that MIGHT cause runtime denials (netd sysfs, mtk_hal_power data, init unlabeled,
+off-mode charging) -> watch logcat after flashing; re-add TYPED rules if denials appear.
+Building systemimage+productimage+system_extimage (user). Then assemble super_v14 + deploy + test.
