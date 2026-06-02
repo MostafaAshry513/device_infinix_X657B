@@ -12,7 +12,10 @@ THE MAC (`ssh -p 2222 brucewayne@localhost /usr/local/bin/{adb,fastboot}`); serv
 and `~/bin/bootwatch`. The phone may be booted to Android (adb=device) or in TWRP recovery.
 
 ## ⭐ STEP 1 — LEARN THE CURRENT STATE (do this first, every time)
-The live state is ALWAYS at the **end of `/root/android/BUILD_FIXES.md`** (mirrored to GitHub
+All logs now live in the **`logs/` folder** (repo + `/root/android/logs/`), not repo root:
+`logs/BUILD_FIXES.md` (full play-by-play), `logs/FINDINGS_apex_selinux.md` (apex/SELinux root cause),
+`logs/STABLE_BUILD_AND_DEBUG.md` (user/stable build + Lawnchair/debloat + app/network/PlayIntegrity/GCam debug).
+The live state is ALWAYS at the **end of `logs/BUILD_FIXES.md`** (mirrored to GitHub
 `MostafaAshry513/device_infinix_X657B` and Mega `/X657B-build/roms/build-9-los-boot/`). It is updated
 after EVERY move. **Read its last ~5 entries** — the most recent one states what was just done and the
 NEXT STEP. Resume from there. If mid-debug, also read the phone's `/metadata/wrapinit.log` (init
