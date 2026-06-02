@@ -839,3 +839,16 @@ iteratively (mka selinux_policy now SEPOL_EXIT=0):
 NOTE: a few rules were removed that MIGHT cause runtime denials (netd sysfs, mtk_hal_power data, init unlabeled,
 off-mode charging) -> watch logcat after flashing; re-add TYPED rules if denials appear.
 Building systemimage+productimage+system_extimage (user). Then assemble super_v14 + deploy + test.
+
+## 2026-06-02 build-14 stable: normal Android 11 (not Go) + UI fixes
+- ro.config.low_ram=false (was set true ONLY by stock vendor build.prop) -> normal Android 11:
+  enables multi-window/SPLIT-SCREEN (verified on device: supports-split-screen=true), full memory mgmt.
+  Baked: device.mk PRODUCT_PROPERTY_OVERRIDES ro.config.low_ram=false + config_supportsMultiWindow=true
+  overlay. At DEPLOY also patch vendor_fixed.img build.prop low_ram=true->false (vendor sets it, wins).
+- GESTURE nav default: overlay config_navBarInteractionMode=2 (confirmed working live).
+- STATUS BAR CLOCK pushed inward: overlay config_mainBuiltInDisplayCutout declared a phantom top-LEFT
+  cutout (M -180,0..-140) but device has a CENTER waterdrop -> cleared the cutout string -> clock returns
+  to left corner.
+- RED EDGE on settings/lockscreen = eng-build StrictMode visual flash (penaltyFlashScreen). Gone in the
+  USER build (ro.build.type=user, non-debuggable). No action needed beyond the user variant.
+All in the device tree; will be in the build-14 stable images (incremental rebuild folds them in).
