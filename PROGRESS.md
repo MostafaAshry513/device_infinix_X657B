@@ -97,3 +97,10 @@ A correctly-built Android 11 system image MUST contain these empty dirs so first
 - Kernel: candidate C failed (LK cmdline overflow from from-source DTB bootargs); candidate D (D1 no-DTB/v1,
   D2 trimmed-DTB, D3 stock-DTB) built, pending on-device test.
 - Phone booted build-20; USB-debugging off post-wipe (re-enable to test detector/launcher/camera).
+
+## 2026-06-04 — build-20 post-flash fixes (on-device)
+- Stock camera `com.android.camera2` removed (`pm uninstall --user 0`); only CameraGo remains.
+- **Launcher bug root cause:** qwen-built Lawnchair-a11.apk was UNSIGNED (no MANIFEST.MF/certs) →
+  build-20 dropped it at package scan → phone left on com.android.settings/FallbackHome (no launcher).
+  FIX: zipalign + apksigner sign with PLATFORM key → installed (app.lawnchair) + set as home; works.
+  fossapps/LawnchairA11.apk updated to the platform-signed APK for build-21 (registers as system launcher).
