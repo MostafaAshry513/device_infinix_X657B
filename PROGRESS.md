@@ -86,3 +86,14 @@ A correctly-built Android 11 system image MUST contain these empty dirs so first
 - NOW building system_ext + product images, then assembling super.img.
 - Architectural note: we now have a real Android 11 handheld base + Go trim layer.
   Full non-Go Android 11 later = drop go_defaults/common_mini_go (~1-line change).
+
+## 2026-06-04 — build-20 SHIPPED & BOOTED
+- build-20 = release-keys, super_v20 (system/system_ext/product + **vendor_v19** reveny-detector arc.ini fix),
+  Lawnchair-a11 owns recents (Trebuchet removed), CameraGo, GApps. Chunked auto-format installer.
+- **BUG found+fixed:** first flash bootlooped — installer chunked the SPARSE lpmake super; the dd-installer
+  needs RAW. Fixed: `simg2img` sparse→raw before chunking. Recovered on-device (no re-transfer) via
+  `simg2img /dev/block/by-name/super` → scratch → dd back. See INSTALL_METHOD.md.
+- Corrected zip md5 `8d1883f1dafe54c7cbcd4b83582fb34e` (3.3G, RAW super). On Mega /X657B-build/roms/build-20/.
+- Kernel: candidate C failed (LK cmdline overflow from from-source DTB bootargs); candidate D (D1 no-DTB/v1,
+  D2 trimmed-DTB, D3 stock-DTB) built, pending on-device test.
+- Phone booted build-20; USB-debugging off post-wipe (re-enable to test detector/launcher/camera).
