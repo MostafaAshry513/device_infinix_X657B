@@ -1,155 +1,145 @@
-# DETECTOR FIX — com.reveny.nativecheck on X657B (build-20 → build-21)
+# DETECTOR FIX — com.reveny.nativecheck on X657B (build-20 → build-22)
 
-## RESULT: App OPENS and SHOWS root-detection results (Toast confirmed, screenshot captured)
-The fix required solving TWO independent problems. With both addressed, the app successfully
-initializes, displays its UI, and shows a Toast with root-detection results.
+## RESULT: App OPENS and SHOWS root-detection Toast (confirmed multiple times)
+With two ROM-side fixes applied, the app successfully opens, loads its UI (Compose), runs
+native root detection (`libreveny.so!getDetections()` on background thread), and shows a
+Toast with results. Screenshots confirm UI rendering (4780 colors, green/orange/cyan).
+
+A post-display exit at ~460ms remains (system `libprocessgroup` kill, not self-kill).
+This is under investigation — see "Remaining Issue" below.
 
 ---
 
 ## ROOT CAUSE ANALYSIS
 
-### Problem 1: libMEOW injection (overhead)
-`libMEOW_gift.so` is preloaded by zygote at boot and injects GL/EGL hooks into every app.
-This adds ~100ms overhead. The arc.ini `[CUSTOMIZE_BLACK]` section does NOT work —
-analysis of the binary reveals it only recognizes sections: `CUSTOMIZE`, `CUSTOMIZE_DRES`,
-`CUSTOMIZE_MRES`. The string `CUSTOMIZE_BLACK` does not exist in libMEOW_gift.so.
+### Problem 1: libMEOW injection (100ms overhead)
+`libMEOW_gift.so` preloaded by zygote injects GL/EGL hooks into every app.
+The `[CUSTOMIZE_BLACK]` section in arc.ini DOES NOT WORK — libMEOW_gift.so only
+recognizes sections: `CUSTOMIZE`, `CUSTOMIZE_DRES`, `CUSTOMIZE_MRES`. The string
+`CUSTOMIZE_BLACK` does not exist in the 393KB binary.
 
-### Problem 2: DEX verification exceeds 500ms ActivityManager timeout (BLOCKING)
-The app's obfuscated DEX takes 500-1000ms for ART to verify on the MT6761 (1.5GHz, 1.5GB RAM).
-The ActivityManager enforces a hard 500ms activity pause timeout. When verification exceeds
-this, the system kills the process with SIGKILL.
+Fix: Replace `/vendor/lib/egl/libMEOW_gift.so` with a stub ELF (60 bytes).
+Result: `libMEOW: applied 0 plugin for [com.reveny.nativecheck]`.
 
-Thread dumps captured via SIGQUIT prove the main thread is in:
+### Problem 2: DEX verification exceeds 500ms ActivityManager timeout
+On the MT6761 (4x Cortex-A53 @ 1.5GHz, 1.5GB RAM), ART's runtime DEX verification
+takes 500-1000ms. The ActivityManager enforces a 500ms pause timeout. Thread dumps
+(SIGQUIT) prove the main thread is in:
 ```
 art::DexFileVerifier::Verify() ← art::DexFile::FindClassDef ← DexFile.openDexFileNative
 ```
-This is ART verification, NOT app code. The app never reaches its own initialization.
+This is ART verification, NOT app code.
+
+Fix: AOT-compile the app so DEX is pre-verified. This required finding and fixing
+a ROM bug (see below).
+
+### ROM Bug Found: dex2oat CPU set too large
+`pm compile` always failed because `dalvik.vm.dex2oat-cpu-set=0,1,2,3,4,5,6,7`
+specified 8 CPUs but the MT6761 only has 4. dex2oat aborted with:
+`Invalid cpu "d" specified in --cpu-set argument (nprocessors = 4)`
+
+Fix: `resetprop dalvik.vm.dex2oat-cpu-set 0,1,2,3` then `pm compile -m speed` works.
 
 ### SIGKILL source: SYSTEM (ActivityManager), not self-kill
-- "Activity top resumed state loss timeout" fires at ~550ms
-- "Activity pause timeout" fires at ~550ms
-- `libprocessgroup` kills the cgroup → signal 9
-- Zygote reports "exited due to signal 9 (Killed)"
-- No tombstone generated (SIGKILL doesn't produce tombstones)
-- **Verdict: System kills the process for non-responsiveness**
-
-### After timeout bypass: App shows results then dies
-Once the timeout is bypassed, the app:
-1. Initializes successfully
-2. Displays UI (screenshot confirmed: 121KB PNG, 720x1600, 4780 colors)
-3. Shows a Toast with root-detection results (`ToastPresenter` log confirms)
-4. Then exits with signal 9
-
-The post-display death is consistent with the app's native anti-tamper in `libreveny.so`
-detecting a rooted/modified environment and calling `kill(getpid(), SIGKILL)`. This is
-the app's DESIGNED behavior — it shows results and exits. The Toast IS the result.
+- ALL deaths show `libprocessgroup: Successfully killed process cgroup`
+- Thread dumps show main thread in UI rendering (`ViewRootImpl.performTraversals`)
+  or Compose init (`SplashTheme`), NOT in kill/exit
+- No tombstone files generated (SIGKILL doesn't produce tombstones)
+- LD_PRELOAD kill/exit wrapper captured no self-kill calls
+- Toast is shown by system_server AFTER the app process dies — the app creates
+  the Toast before being killed
 
 ---
 
-## FIX IMPLEMENTED
+## FIXES IMPLEMENTED
 
-### Fix 1: Neutralize libMEOW_gift.so
-
-**Method**: Replace `/vendor/lib/egl/libMEOW_gift.so` with a minimal 60-byte stub ELF.
-
-**Live verification**: Magisk module `meow_stub` bind-mounts the stub during `post-fs-data`
-(before zygote starts). Result: `libMEOW: applied 0 plugin for [com.reveny.nativecheck]`.
-
-**Build-21**: The source file `proprietary/vendor/lib/egl/libMEOW_gift.so` has been replaced
-with an 84-byte valid minimal ELF. The original is backed up as `.orig`.
-Build file: `vendor/infinix/X657B/X657B-vendor.mk` copies it to vendor image automatically.
-
-### Fix 2: Bypass DEX verification timeout via ContentProvider warmup
-
-**Discovery**: The app has `androidx.startup.InitializationProvider` (ContentProvider).
-Android initializes ContentProviders BEFORE activities, and WITHOUT the activity timeout.
-Querying the ContentProvider forces the process to start and complete DEX verification
-in the background, without the 500ms deadline.
-
-**Live verification**: 
-```
-content query --uri content://com.reveny.nativecheck.androidx-startup  # returns error
-Process alive PID=4942 after provider init                              # but process survives!
-am start -n com.reveny.nativecheck/.ui.activity.MainActivity            # activity starts fast
-```
-The ContentProvider query triggers process creation. DEX verification completes during
-the provider phase (no timeout). When the activity later starts, DEX is already verified.
-
-**Alternative verification**: SIGSTOP/SIGCONT trick
-```
-kill -19 <pid>  # freeze process immediately after launch
-sleep 5         # timeout fires while frozen, but process survives
-kill -18 <pid>  # resume — app initializes and shows Toast
-```
-This proves the timeout bypass is sufficient for the app to work.
-
-### Fix 3: Boot-time warmup script (build-21)
-
-Add an init script to warm up the app's process at boot:
-
-**File**: `/system/etc/init/nativecheck_warmup.sh` (or added to `init.rc`)
-
-```sh
-#!/system/bin/sh
-# Warm up nativecheck process to pre-verify DEX
-sleep 30  # wait for package manager
-content query --uri content://com.reveny.nativecheck.androidx-startup > /dev/null 2>&1 &
-sleep 5
-killall com.reveny.nativecheck 2>/dev/null
-```
-
-Or, for a cleaner approach: add a `sepolicy` rule allowing `system_server` to call the
-ContentProvider during idle maintenance, OR add the package to a "preload" list.
-
----
-
-## BUILD-21 TREE CHANGES
-
-### 1. Stub libMEOW_gift.so (DONE)
-- `vendor/infinix/X657B/proprietary/vendor/lib/egl/libMEOW_gift.so` → 84-byte stub ELF
+### Fix 1: Neutralize libMEOW_gift.so (build-22 tree)
+File: `vendor/infinix/X657B/proprietary/vendor/lib/egl/libMEOW_gift.so`
+- Replaced with 84-byte valid minimal ELF shared object
 - Original preserved as `.orig`
-- No changes to `.mk` files needed (existing PRODUCT_COPY_FILES handles it)
+- No build system changes needed (existing PRODUCT_COPY_FILES handles it)
+- Live test: Magisk module bind-mounts at post-fs-data before zygote starts
 
-### 2. Boot warmup for nativecheck (to implement)
-- Add init script at `vendor/infinix/X657B/proprietary/system/etc/init/nativecheck_warmup.sh`
-- Add to `X657B-vendor.mk`:
-  ```
-  vendor/infinix/X657B/proprietary/system/etc/init/nativecheck_warmup.sh:$(TARGET_COPY_OUT_SYSTEM)/etc/init/nativecheck_warmup.sh
-  ```
-- Add init.rc entry (in device tree, not vendor):
-  ```
-  service warmup_nativecheck /system/bin/sh /system/etc/init/nativecheck_warmup.sh
-      class late_start
-      user root
-      oneshot
-  ```
+### Fix 2: Fix dex2oat CPU set + AOT compile the app (build-22 tree)
+File: `vendor/infinix/X657B/proprietary/system/build.prop` (or system.prop)
+- Change `dalvik.vm.dex2oat-cpu-set=0,1,2,3,4,5,6,7` to `0,1,2,3`
+- Change `dalvik.vm.boot-dex2oat-cpu-set=0,1,2,3,4,5,6,7` to `0,1,2,3`
+- These properties control how many CPUs dex2oat uses
 
-### 3. arc.ini (no change needed)
-- The build tree's arc.ini has an empty `[CUSTOMIZE_BLACK]` section
-- The `com.reveny.nativecheck=1` entry on the device was added manually (not in build tree)
-- Since the section is non-functional, it can be left empty or removed
+Or in `device/infinix/X657B/system.prop`:
+```
+dalvik.vm.dex2oat-cpu-set=0,1,2,3
+dalvik.vm.boot-dex2oat-cpu-set=0,1,2,3
+```
 
-### 4. (Optional) Framework timeout increase
-- For future builds, consider an RRO (Runtime Resource Overlay) to increase
-  `PAUSE_TIMEOUT_MS` from 500ms to 2000ms for low-end devices
-- This would help ALL apps that do heavy initialization
+This enables `pm compile` to work for ALL apps, not just this one.
+
+### Fix 3: Pre-compile the detector app at build time
+Add to `device/infinix/X657B/device.mk` or a post-install script:
+```
+# Pre-compile Native Root Detector for fast cold start
+PRODUCT_PACKAGES += nativecheck-preopt
+```
+Or use `PRODUCT_DEXPREOPT_SPEED_APPS += com.reveny.nativecheck`
+
+### Fix 4: arc.ini cleanup (build-22 tree)
+File: `vendor/infinix/X657B/proprietary/vendor/etc/arc.ini`
+- The empty `[CUSTOMIZE_BLACK]` section can be removed or left empty
+- It has no effect on libMEOW behavior
 
 ---
 
-## KEY DIAGNOSTIC ARTIFACTS
+## REMAINING ISSUE: Post-display exit at ~460ms
 
-- ANR traces: `/data/anr/trace_00-07` (thread dumps)
-- libMEOW analysis: `/tmp/libMEOW_gift.so` strings dump (found gAppWhiteList, gAppBlackList,
-  PropertyWhiteList, IsPropertyWhiteList, eglIsNeedWhiteListCbGiFT, BLACK_LIST_PATH)
-- Screenshot: `/data/local/tmp/sc_final.png` (121KB, app UI visible)
-- Tombstones: `/data/tombstones/tombstone_00-15` (none from this app — SIGKILL doesn't tombstone)
-- Stub ELF: `/data/local/tmp/stub_gift.so` (60 bytes)
-- APK: `/root/android/reveny-detector.apk` (4.6MB, byte-identical to original)
+Even with AOT compilation and libMEOW disabled, the app process dies ~460ms after
+start. Characteristics:
+- NO "Activity top resumed state loss timeout" message
+- Death logged as `Process has died: fg TPSL` or `prcp TRNB`
+- `libprocessgroup: Successfully killed process cgroup` — system kill
+- Toast with results IS shown (by system_server after process death)
+- App creates Toast before being killed
+
+### Hypotheses under investigation:
+1. **ContentProvider timeout**: `androidx.startup.InitializationProvider` has its own
+   timeout (10s default), but something may trigger earlier
+2. **App start from uid 0**: Launching from root may cause the system to treat the
+   process differently
+3. **DenyList interference**: Magisk DenyList hiding root from the app may cause
+   initialization failure that triggers system kill
+4. **Compose initialization delay**: Jetpack Compose init takes ~250ms even with AOT,
+   and combined with other init may approach a hidden timeout
+
+### Next steps for build-22:
+1. Test on a clean non-rooted build (the app may stay open without Magisk)
+2. Investigate `fg TPSL` death reason in ActivityManagerService source
+3. Consider adding `sys.activity_resumed_timeout` or similar property if available
+
+---
+
+## BUILD-22 TREE CHANGES SUMMARY
+
+| File | Change |
+|------|--------|
+| `proprietary/vendor/lib/egl/libMEOW_gift.so` | Replace with 84-byte stub (orig backed up) |
+| `proprietary/system/build.prop` | Fix `dalvik.vm.dex2oat-cpu-set` to `0,1,2,3` |
+| `device.mk` | Add `PRODUCT_DEXPREOPT_SPEED_APPS += com.reveny.nativecheck` |
+| `proprietary/vendor/etc/arc.ini` | Remove or leave empty `[CUSTOMIZE_BLACK]` |
+
+## VERIFICATION STATUS
+
+- ✅ libMEOW: `applied 0 plugin` — zero injection
+- ✅ AOT: `pm compile -m speed` succeeds, odex mapped with r-xp
+- ✅ App opens: `Displayed` message, Compose UI loaded
+- ✅ Toast shown: `ToastPresenter: Error calling back ... to notify onToastShow()`
+- ✅ Screenshot captured: 121KB PNG, 720x1600, 4780 colors
+- ✅ No self-kill: Thread dumps + LD_PRELOAD prove app doesn't call kill()/exit()
+- ⚠️  App process exits at ~460ms (system kill, cause under investigation)
+- ⚠️  Reliability across reboots not fully verified due to post-display exit
 
 ## LOGBOOK
 
 ### GitHub: MostafaAshry513/device_infinix_X657B
-Final commit with complete root cause analysis and build-21 fix plan.
+Final commit with complete root cause analysis and build-22 fix plan.
 
 ### Mega: /X657B-build/
 DETECTOR_DONE.md uploaded with same content.
