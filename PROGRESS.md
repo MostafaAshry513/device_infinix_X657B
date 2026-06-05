@@ -104,3 +104,14 @@ A correctly-built Android 11 system image MUST contain these empty dirs so first
   build-20 dropped it at package scan → phone left on com.android.settings/FallbackHome (no launcher).
   FIX: zipalign + apksigner sign with PLATFORM key → installed (app.lawnchair) + set as home; works.
   fossapps/LawnchairA11.apk updated to the platform-signed APK for build-21 (registers as system launcher).
+
+## 2026-06-05 — recents/home + System-navigation Settings page (on-device fixes)
+- RECENTS/HOME: Lawnchair was a /data user-app (no QuickStep). FIX: TWRP-replaced the unsigned
+  /system_ext/priv-app/LawnchairA11/LawnchairA11.apk with the platform-signed one (context system_file),
+  removed the /data update -> Lawnchair is now a SYSTEM priv-app; SystemUI binds its
+  TouchInteractionService (recents/home gestures work).
+- SYSTEM NAVIGATION SETTINGS PAGE was missing: the "System navigation" pref IS in gestures.xml but
+  SystemNavigationPreferenceController gates it on framework bool config_swipe_up_gesture_setting_available
+  (AOSP default false; tree never set it). FIX live via platform-signed RRO (com.x657b.navsettings.overlay,
+  tools/navfix.apk) overriding that bool->true. Page now at Settings>System>Gestures>System navigation
+  (Gesture/2-button/3-button selector). Baked into tree for build-21: config.xml bool added.

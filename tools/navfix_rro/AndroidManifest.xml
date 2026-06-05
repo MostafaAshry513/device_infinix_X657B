@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.x657b.navsettings.overlay" android:versionCode="1" android:versionName="1.0">
+    <application android:hasCode="false" android:label="X657B Nav Settings"/>
+    <overlay android:targetPackage="android" android:isStatic="false" android:priority="999" />
+</manifest>
