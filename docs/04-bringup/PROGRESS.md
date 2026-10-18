@@ -92,7 +92,7 @@ A correctly-built Android 11 system image MUST contain these empty dirs so first
   Lawnchair-a11 owns recents (Trebuchet removed), CameraGo, GApps. Chunked auto-format installer.
 - **BUG found+fixed:** first flash bootlooped — installer chunked the SPARSE lpmake super; the dd-installer
   needs RAW. Fixed: `simg2img` sparse→raw before chunking. Recovered on-device (no re-transfer) via
-  `simg2img /dev/block/by-name/super` → scratch → dd back. See INSTALL_METHOD.md.
+  `simg2img /dev/block/by-name/super` → scratch → dd back. See [`INSTALL_METHOD.md`](../03-build-and-flash/INSTALL_METHOD.md).
 - Corrected zip md5 `8d1883f1dafe54c7cbcd4b83582fb34e` (3.3G, RAW super). On Mega /X657B-build/roms/build-20/.
 - Kernel: candidate C failed (LK cmdline overflow from from-source DTB bootargs); candidate D (D1 no-DTB/v1,
   D2 trimmed-DTB, D3 stock-DTB) built, pending on-device test.

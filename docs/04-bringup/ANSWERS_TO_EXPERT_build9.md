@@ -73,8 +73,9 @@ ramoops.console_size = 0x40000 (256KB); captured file = 227KB ending at panic.
    (debug.ld.* props won't exist yet; LD_DEBUG needs env we can't set pre-init)?
 
 ## How to reproduce our checks
-Device tree + all docs: GitHub MostafaAshry513/device_infinix_X657B,
-Mega /X657B-build/roms/build-9-los-boot/ (ramoops_build9.txt, FINDINGS_build9_exit127.md).
+Device tree + all docs: GitHub MostafaAshry513/device_infinix_X657B
+([`FINDINGS_build9_exit127.md`](FINDINGS_build9_exit127.md), [`BUILD_FIXES.md`](../06-logbook/BUILD_FIXES.md)),
+Mega /X657B-build/roms/build-9-los-boot/ (ramoops_build9.txt).
 
 ---
 ## ROUND 2 (helper-process theory tested + ruled out)

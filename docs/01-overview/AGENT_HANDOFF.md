@@ -2,8 +2,8 @@
 
 ## ✅ 2026-05-31: THE ROM NOW BOOTS TO HOME. Next work = TEST + POLISH, not bring-up.
 LineageOS 18.1-20260531-UNOFFICIAL-X657B boots fully (boot_completed=1, launcher up, SELinux ENFORCING,
-/data f2fs non-encrypted). **READ `/root/android/TEAM_TESTING_PLAN.md` FIRST — it has the exact next tasks,
-commands, the working recipe (don't break it), and how to reach the phone.** Then this file + BUILD_FIXES.md.
+/data f2fs non-encrypted). **READ [`TEAM_TESTING_PLAN.md`](TEAM_TESTING_PLAN.md) FIRST — it has the exact next tasks,
+commands, the working recipe (don't break it), and how to reach the phone.** Then this file + `BUILD_FIXES.md`.
 
 You are continuing a long effort to boot a **full working LineageOS 18.1 ROM** on an **Infinix Smart 5
 X657B** (MediaTek **MT6761**, Android 11, **32-bit userspace only**, non-A/B, dynamic partitions/`super`,
@@ -12,10 +12,10 @@ THE MAC (`ssh -p 2222 brucewayne@localhost /usr/local/bin/{adb,fastboot}`); serv
 and `~/bin/bootwatch`. The phone may be booted to Android (adb=device) or in TWRP recovery.
 
 ## ⭐ STEP 1 — LEARN THE CURRENT STATE (do this first, every time)
-All logs now live in the **`logs/` folder** (repo + `/root/android/logs/`), not repo root:
-`logs/BUILD_FIXES.md` (full play-by-play), `logs/FINDINGS_apex_selinux.md` (apex/SELinux root cause),
-`logs/STABLE_BUILD_AND_DEBUG.md` (user/stable build + Lawnchair/debloat + app/network/PlayIntegrity/GCam debug).
-The live state is ALWAYS at the **end of `logs/BUILD_FIXES.md`** (mirrored to GitHub
+All logs now live in the **[`06-logbook/`](../06-logbook/) folder** (repo + `/root/android/logs/`), not repo root:
+[`BUILD_FIXES.md`](../06-logbook/BUILD_FIXES.md) (full play-by-play), [`FINDINGS_apex_selinux.md`](../06-logbook/FINDINGS_apex_selinux.md) (apex/SELinux root cause),
+[`STABLE_BUILD_AND_DEBUG.md`](../06-logbook/STABLE_BUILD_AND_DEBUG.md) (user/stable build + Lawnchair/debloat + app/network/PlayIntegrity/GCam debug).
+The live state is ALWAYS at the **end of [`BUILD_FIXES.md`](../06-logbook/BUILD_FIXES.md)** (mirrored to GitHub
 `MostafaAshry513/device_infinix_X657B` and Mega `/X657B-build/roms/build-9-los-boot/`). It is updated
 after EVERY move. **Read its last ~5 entries** — the most recent one states what was just done and the
 NEXT STEP. Resume from there. If mid-debug, also read the phone's `/metadata/wrapinit.log` (init

@@ -56,5 +56,5 @@ No `androidboot.selinux=permissive` (ours in boot.img is dropped) → boots **en
    the boot-time compile path (needs /sys/fs/selinux/null, file_contexts) a likely culprit?
 
 ## Data available on request
-Full ramoops, FINDINGS_build9_exit127.md, BUILD_FIXES.md (GitHub MostafaAshry513/device_infinix_X657B
+Full ramoops, [`FINDINGS_build9_exit127.md`](FINDINGS_build9_exit127.md), [`BUILD_FIXES.md`](../06-logbook/BUILD_FIXES.md) (GitHub MostafaAshry513/device_infinix_X657B
 + Mega /X657B-build/roms/build-9-los-boot/).

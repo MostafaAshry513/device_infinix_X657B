@@ -1,7 +1,7 @@
 # X657B — Stable build + on-device debug log (2026-06-02)
 
-All build/debug logs now live in this `logs/` folder (moved out of repo root):
-`logs/BUILD_FIXES.md` (full bring-up play-by-play), `logs/FINDINGS_apex_selinux.md` (apex/SELinux root cause),
+All build/debug logs now live in this `06-logbook/` folder (moved out of repo root):
+[`BUILD_FIXES.md`](BUILD_FIXES.md) (full bring-up play-by-play), [`FINDINGS_apex_selinux.md`](FINDINGS_apex_selinux.md) (apex/SELinux root cause),
 and this file. Kernel build logs live in the separate kernel repo (MostafaAshry513/x657b_kernel_4.19, BUILD_LOG.md).
 
 ## Recap: where we are

@@ -41,5 +41,5 @@ This is the LAST first-stage step. We've cleared: ramdisk load, vbmeta, all 4 mo
 - Build dir: /root/android/lineage  (lunch lineage_X657B-eng)
 
 ## ARTIFACTS
-- GitHub: MostafaAshry513/device_infinix_X657B (BUILD_FIXES.md, WORKING_BUILD_RECIPE.md, patches)
+- GitHub: MostafaAshry513/device_infinix_X657B ([`BUILD_FIXES.md`](../06-logbook/BUILD_FIXES.md), [`WORKING_BUILD_RECIPE.md`](../03-build-and-flash/WORKING_BUILD_RECIPE.md), patches)
 - Mega: /X657B-build/roms/build-8-proven-tree/ (super.img, boot_nocheck.img, vbmeta*, FLASH.md, BUILD_FIXES.md)

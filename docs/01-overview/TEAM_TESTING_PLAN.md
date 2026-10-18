@@ -75,7 +75,7 @@ In /root/android/lineage/system/core/init, revert the WRAPINIT additions:
 ## RULES
 - Validate before flashing; flash sparingly (a human must press TWRP keys / re-tunnel if it bootloops).
 - DO NOT break the working recipe (flattened apex, boot 57e6, vbmeta flags-3, enforcing, f2fs /data).
-- **LOG every move** to GitHub `MostafaAshry513/device_infinix_X657B` BUILD_FIXES.md (gh api PUT) AND Mega
-  (`mega-put -c`). Append, don't overwrite. The full play-by-play + root causes are in BUILD_FIXES.md and
-  FINDINGS_apex_selinux.md.
+- **LOG every move** to GitHub `MostafaAshry513/device_infinix_X657B` [`BUILD_FIXES.md`](../06-logbook/BUILD_FIXES.md) (gh api PUT) AND Mega
+  (`mega-put -c`). Append, don't overwrite. The full play-by-play + root causes are in [`BUILD_FIXES.md`](../06-logbook/BUILD_FIXES.md) and
+  [`FINDINGS_apex_selinux.md`](../06-logbook/FINDINGS_apex_selinux.md).
 - Do NOT touch Killbotv2.
