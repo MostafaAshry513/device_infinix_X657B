@@ -4,7 +4,7 @@ Unofficial LineageOS 18.1 device tree for the **Infinix Smart 5 (X657B / X657B-O
 
 Strategy: ship **fresh LineageOS `system` + `system_ext`** on top of **stock `vendor` + `product` + `boot` + `dtbo`** for maximum hardware compatibility — no kernel modifications, no vendor blob extraction, no risk of breaking device-specific drivers (camera, fingerprint, modem, etc.).
 
-📚 **Project notes, build history, and debugging logs:** [`docs/README.md`](docs/README.md)
+📚 **Project notes, build history, and debugging logs:** [`docs/README.md`](docs/README.md) — numbered reading order (what to read and when).
 
 ## Device specs
 
